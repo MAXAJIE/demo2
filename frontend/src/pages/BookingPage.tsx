@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,7 +23,7 @@ import { PageMeta } from "../components/site/PageMeta";
 import { WhatsAppIcon } from "../components/site/WhatsAppIcon";
 import { Link001 } from "../components/ui/link-001";
 import { SmoothInput } from "../components/ui/smooth-input";
-import { createBooking, fetchAvailability } from "../lib/api";
+import { createBooking, fetchAvailability, subscribeBookings } from "../lib/api";
 import { reconcileSlot } from "../lib/slot-selection";
 import {
   cn,
@@ -108,6 +108,16 @@ export function BookingPage() {
     shouldUnregister: false,
     defaultValues: { customer_name: "", customer_phone: "", consent: false, website: "" },
   });
+
+  const queryClient = useQueryClient();
+  const tenantSlug = bundle.tenant.slug;
+
+  // Live sync with the backstage: a booking taken there refreshes these slots.
+  useEffect(() => {
+    return subscribeBookings(() => {
+      void queryClient.invalidateQueries({ queryKey: ["availability", tenantSlug] });
+    });
+  }, [queryClient, tenantSlug]);
 
   const availability = useQuery({
     queryKey: ["availability", bundle.tenant.slug, serviceSlug],

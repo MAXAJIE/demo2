@@ -38,3 +38,7 @@ frontend/.wrangler/
 frontend/dist-local/
 frontend/dist-supabase/
 frontend/dist-admin/
+supabase/.temp/
+backstage.log
+backstage.err.log
+supabase/.temp/

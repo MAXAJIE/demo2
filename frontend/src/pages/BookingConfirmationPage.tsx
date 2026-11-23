@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +20,7 @@ import { PageMeta } from "../components/site/PageMeta";
 import { ConfirmationSkeleton } from "../components/site/Skeletons";
 import { WhatsAppIcon } from "../components/site/WhatsAppIcon";
 import { StatusBadge } from "../components/ui/StatusBadge";
-import { ApiError, cancelBooking, fetchBooking, uploadProof } from "../lib/api";
+import { ApiError, cancelBooking, fetchBooking, subscribeBookings, uploadProof } from "../lib/api";
 import { cn, formatDateLong, formatTime, money, safeHttpUrl, text } from "../lib/utils";
 
 export function BookingConfirmationPage() {
@@ -36,6 +36,12 @@ export function BookingConfirmationPage() {
   const [proofMessage, setProofMessage] = useState("");
   const [proofError, setProofError] = useState("");
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    return subscribeBookings(() => {
+      void queryClient.invalidateQueries({ queryKey: ["booking", ref, token] });
+    });
+  }, [queryClient, ref, token]);
 
   const query = useQuery({
     queryKey: ["booking", ref, token],

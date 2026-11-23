@@ -180,18 +180,26 @@ export async function uploadServiceImage(
   return (await gateway()).uploadServiceImage(file, kind);
 }
 
-export function subscribeBookings(onChange: () => void): () => void {
+/** Subscribe after the lazy adapter resolves, and still unsubscribe correctly. */
+function subscribeLazy(pick: (adapter: Awaited<ReturnType<typeof gateway>>) => () => void): () => void {
   let stop: (() => void) | null = null;
+  let disposed = false;
   void gateway().then((adapter) => {
-    stop = adapter.subscribeBookings(onChange);
+    const unsubscribe = pick(adapter);
+    if (disposed) unsubscribe();
+    else stop = unsubscribe;
   });
-  return () => stop?.();
+  return () => {
+    disposed = true;
+    stop?.();
+    stop = null;
+  };
+}
+
+export function subscribeBookings(onChange: () => void): () => void {
+  return subscribeLazy((adapter) => adapter.subscribeBookings(onChange));
 }
 
 export function subscribeOfferings(onChange: () => void): () => void {
-  let stop: (() => void) | null = null;
-  void gateway().then((adapter) => {
-    stop = adapter.subscribeOfferings(onChange);
-  });
-  return () => stop?.();
+  return subscribeLazy((adapter) => adapter.subscribeOfferings(onChange));
 }

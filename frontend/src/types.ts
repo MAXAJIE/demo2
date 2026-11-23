@@ -39,6 +39,8 @@ export interface Offering {
     preparation_notes?: I18nText;
   };
   duration_min: number | null;
+  /** Cropped cover (4:5) and detail (16:9) URLs from Supabase Storage */
+  images?: { cover?: string; detail?: string };
   status: string;
   sort: number;
 }

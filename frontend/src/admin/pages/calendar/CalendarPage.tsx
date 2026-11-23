@@ -81,7 +81,7 @@ export function CalendarPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="btn btn-outline !min-h-[2.5rem] !px-3"
+              className="btn border border-line bg-surface text-ink hover:bg-surface2 !min-h-[2.5rem] !px-3"
               aria-label={copy("previousDay")}
               onClick={() => setDate(shiftDateKey(date, -1))}
             >
@@ -94,7 +94,7 @@ export function CalendarPage() {
               <input
                 id="calendar-page-date"
                 type="date"
-                className="field !min-h-[2.5rem] !w-auto !py-1.5 text-sm"
+                className="field !min-h-[2.5rem] !w-auto !bg-surface2 !py-1.5 !text-ink text-sm"
                 value={date}
                 onChange={(event) => {
                   const next = event.target.value;
@@ -104,7 +104,7 @@ export function CalendarPage() {
             </div>
             <button
               type="button"
-              className="btn btn-outline !min-h-[2.5rem] !px-3"
+              className="btn border border-line bg-surface text-ink hover:bg-surface2 !min-h-[2.5rem] !px-3"
               aria-label={copy("nextDay")}
               onClick={() => setDate(shiftDateKey(date, 1))}
             >
@@ -113,7 +113,7 @@ export function CalendarPage() {
             <button
               type="button"
               className={cn(
-                "btn btn-outline !min-h-[2.5rem] !px-3 !text-xs",
+                "btn border border-line bg-surface text-ink hover:bg-surface2 !min-h-[2.5rem] !px-3 !text-xs",
                 date === today && "opacity-50",
               )}
               onClick={() => setDate(today)}
@@ -176,7 +176,7 @@ export function CalendarPage() {
               <p className="text-sm text-muted">{copy("loadError")}</p>
               <button
                 type="button"
-                className="btn btn-outline mt-4 !min-h-[2.4rem] !px-3 !text-xs"
+                className="btn mt-4 border border-line bg-surface text-ink hover:bg-surface2 !min-h-[2.4rem] !px-3 !text-xs"
                 onClick={() => void dayQuery.refetch()}
               >
                 <RotateCw size={13} aria-hidden="true" />

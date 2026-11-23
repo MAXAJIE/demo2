@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
@@ -46,11 +46,20 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [language, setLanguage] = useState<Locale>(locale);
+  // The caller's language defaults to the backstage locale until staff change it.
+  const [languageOverride, setLanguageOverride] = useState<Locale | null>(null);
+  const language = languageOverride ?? locale;
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
   const [slotError, setSlotError] = useState("");
   const [created, setCreated] = useState<BookingResponse | null>(null);
+  const successRef = useRef<HTMLDivElement | null>(null);
+
+  // The confirmation sits at the top of the card; bring it into view after a
+  // save so the front desk sees the reference without scrolling back.
+  useEffect(() => {
+    if (created) successRef.current?.scrollIntoView({ block: "nearest" });
+  }, [created]);
 
   const offeringsQuery = useQuery({ queryKey: ["admin-offerings"], queryFn: adminOfferings });
   const published = useMemo(
@@ -88,12 +97,13 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
       setFormError("");
       setSlotError("");
       setFieldErrors({});
-      // Reset the caller's fields only: the service and the shared day stay so
-      // the front desk can take the next caller without re-picking the date.
+      // Reset the form for the next caller. The page date is shared page state,
+      // so it stays; everything else that belongs to this booking is cleared.
+      setServiceSlug("");
+      setSelectedSlot(null);
       setName("");
       setPhone("");
-      setSelectedSlot(null);
-      void availability.refetch();
+      setLanguageOverride(null);
       onBooked();
     },
     onError: (error) => {
@@ -122,7 +132,6 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
     setSelectedSlot(null);
     setSlotError("");
     setFormError("");
-    setCreated(null);
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -137,6 +146,14 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
     }
     if (!selectedSlot) {
       setFormError(copy("slotRequired"));
+      return;
+    }
+    if (isSlotBooked(selectedSlot.starts_at, booked)) {
+      // The timeline gained this slot while the form was open: never submit a
+      // time the front desk can already see as booked.
+      setSelectedSlot(null);
+      setSlotError(copy("slotTaken"));
+      onSlotsStale();
       return;
     }
     const trimmedName = name.trim();
@@ -168,7 +185,11 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
       <p className="mt-1 text-xs text-muted">{copy("formHint")}</p>
 
       {created ? (
-        <div className="mt-5 rounded-control border border-line bg-surface2 p-4" role="status">
+        <div
+          ref={successRef}
+          className="mt-5 rounded-control border border-line bg-surface2 p-4"
+          role="status"
+        >
           <p className="flex items-center gap-2 text-sm font-semibold">
             <Check size={15} className="text-accent-ink" aria-hidden="true" />
             {copy("successTitle")}
@@ -209,7 +230,7 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
           </label>
           <select
             id="calendar-service"
-            className="field"
+            className="field !bg-surface2 !text-ink"
             value={serviceSlug}
             onChange={chooseService}
             disabled={offeringsQuery.isLoading || mutation.isPending}
@@ -244,7 +265,7 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
           <input
             id="calendar-date"
             type="date"
-            className="field"
+            className="field !bg-surface2 !text-ink"
             value={date}
             onChange={(event) => {
               const next = event.target.value;
@@ -265,7 +286,8 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
           {!serviceSlug ? (
             <p className="hint">{copy("noService")}</p>
           ) : availability.isLoading ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" aria-busy="true">
+              <span className="sr-only">{copy("slotsLoading")}</span>
               {Array.from({ length: 6 }, (_, index) => (
                 <span key={index} className="skeleton h-8 w-20 rounded-full" />
               ))}
@@ -333,7 +355,7 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
             </label>
             <input
               id="calendar-name"
-              className="field"
+              className="field !bg-surface2 !text-ink"
               value={name}
               onChange={(event) => {
                 setName(event.target.value);
@@ -341,6 +363,7 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
               }}
               placeholder={copy("namePlaceholder")}
               autoComplete="name"
+              maxLength={80}
               aria-invalid={fieldErrors.name ? true : undefined}
               aria-describedby={fieldErrors.name ? "calendar-name-error" : undefined}
             />
@@ -358,7 +381,7 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
               id="calendar-phone"
               type="tel"
               inputMode="tel"
-              className="field"
+              className="field !bg-surface2 !text-ink"
               value={phone}
               onChange={(event) => {
                 setPhone(event.target.value);
@@ -366,6 +389,7 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
               }}
               placeholder={copy("phonePlaceholder")}
               autoComplete="tel"
+              maxLength={24}
               aria-invalid={fieldErrors.phone ? true : undefined}
               aria-describedby={fieldErrors.phone ? "calendar-phone-error" : undefined}
             />
@@ -383,9 +407,9 @@ export function AddAppointmentForm({ date, booked, onDateChange, onBooked, onSlo
           </label>
           <select
             id="calendar-language"
-            className="field"
+            className="field !bg-surface2 !text-ink"
             value={language}
-            onChange={(event) => setLanguage(event.target.value as Locale)}
+            onChange={(event) => setLanguageOverride(event.target.value as Locale)}
             disabled={mutation.isPending}
           >
             {languages.map((item) => (

@@ -323,6 +323,13 @@ function mapOffering(row: Row): Offering {
     status: asText(row.status) || "draft",
     sort: asNumber(row.sort) ?? 0,
   };
+  const images = asRow(row.images);
+  if (Object.keys(images).length > 0) {
+    offering.images = {
+      cover: asText(images.cover) || undefined,
+      detail: asText(images.detail) || undefined,
+    };
+  }
   if (duration !== null) offering.attributes.duration_min = duration;
   if (typeof attributes.format === "string") offering.attributes.format = attributes.format;
   if (isRecord(attributes.preparation_notes)) {
@@ -351,7 +358,7 @@ const ADMIN_BOOKING_COLUMNS =
 
 const OFFERING_COLUMNS =
   "id,slug,kind,title,summary,body,price_cents,deposit_cents,currency,price_note,attributes," +
-  "status,sort";
+  "images,status,sort";
 
 const LEAD_COLUMNS =
   "id,lead_ref,display_name,contact_masked,summary_note,status,locale,source,internal_notes," +
@@ -584,6 +591,15 @@ function buildOfferingPatch(current: Row, body: Record<string, unknown>): Row {
       throw new ApiError("Invalid status", 422, "invalid_status");
     }
     patch.status = status;
+  }
+  if (isRecord(body.images)) {
+    const currentImages = asRow(current.images);
+    const next: Row = { ...currentImages };
+    for (const slot of ["cover", "detail"] as const) {
+      const value = body.images[slot];
+      if (typeof value === "string" && value !== "") next[slot] = value;
+    }
+    patch.images = next;
   }
   return patch;
 }
