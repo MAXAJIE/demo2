@@ -230,7 +230,7 @@ export function HomePage() {
 
               <motion.h1
                 {...reveal(0.04)}
-                initial={reduceMotion ? false : { y: 30, opacity: 0, filter: "blur(24px)", scale: 0.988 }}
+                initial={reduceMotion ? false : { y: 30, opacity: 1, filter: "blur(24px)", scale: 0.988 }}
                 animate={{ y: 0, opacity: 1, filter: "blur(0px)", scale: 1 }}
                 transition={{ duration: reduceMotion ? 0 : 2.0, delay: reduceMotion ? 0 : 0.12, ease: EASE }}
                 className="display mt-5 max-w-[18ch] text-[clamp(2.55rem,7.4vw,6.1rem)] leading-[0.98] [text-wrap:balance]"

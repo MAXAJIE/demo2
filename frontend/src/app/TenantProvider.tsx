@@ -7,6 +7,7 @@ import { TenantContext, type TenantContextValue } from "./tenant-context";
 import i18n from "../lib/i18n";
 import { fetchSite, setActiveTenant } from "../lib/api";
 import { readBootstrap } from "../lib/bootstrap";
+import { ensureCjkFonts } from "../lib/fonts";
 import { SiteSkeleton } from "../components/site/Skeletons";
 import { text } from "../lib/utils";
 import type { Locale, SiteBundle } from "../types";
@@ -31,11 +32,7 @@ function initialTenant(): string | null {
 function initialLocale(): Locale | null {
   try {
     const stored = localStorage.getItem(LOCALE_KEY);
-    if (stored === "zh") {
-      localStorage.setItem(LOCALE_KEY, "ms");
-      return "ms";
-    }
-    return stored === "ms" || stored === "en" ? stored : null;
+    return stored === "ms" || stored === "en" || stored === "zh" ? stored : null;
   } catch {
     return null;
   }
@@ -82,12 +79,14 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     const stored = initialLocale();
     const next = stored && allowed.includes(stored) ? stored : bundle.site.default_locale;
     setLocaleState(next);
+    if (next === "zh") ensureCjkFonts();
     void i18n.changeLanguage(next);
     document.documentElement.lang = next === "zh" ? "zh-Hans" : next === "ms" ? "ms" : "en";
   }, [bundle]);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
+    if (next === "zh") ensureCjkFonts();
     void i18n.changeLanguage(next);
     document.documentElement.lang = next === "zh" ? "zh-Hans" : next === "ms" ? "ms" : "en";
     try {

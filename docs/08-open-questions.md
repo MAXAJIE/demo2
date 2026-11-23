@@ -3,8 +3,12 @@
 ## Resolved Decisions (Locked)
 - **Database Tenancy (`D2`):** Single shared Supabase database with `tenant_id` isolation + hostname routing (`*.yourdomain.my` and custom domains).
 - **M7 Setup Wizard:** Removed. Founder provisions new Malaysian SME tenants via SQL seed / super-admin script in <10 minutes.
-- **MVP Languages:** English (`en`) + Bahasa Melayu (`ms`) with automatic fallback. Simplified Chinese (`zh`) stays in the data model for legacy tenants but is no longer exposed in the Setapak switcher.
+- **MVP Languages:** English (`en`) + Bahasa Melayu (`ms`) + Simplified Chinese (`zh`), all three exposed in the switcher (owner decision, 2026-11-23). CJK fonts load on demand only when `zh` is active.
 - **Zero-PII Compliance:** Sensitive customer details and payment receipt screenshots are forwarded via Edge Function webhook to the merchant's WhatsApp/Google Sheet and are NOT stored in Postgres.
+- **Hosting (2026-11-23):** Static frontend on Cloudflare Pages with Pages Functions for head/SEO, robots/sitemap, Turnstile verification and webhooks. No backend server we host; data and auth in Supabase. Localhost runs the frontend alone through a local data adapter.
+- **Admin access (2026-11-23):** two tiers — customer staff at `/manage`, platform owner at `/platform` — invite-only, public sign-up disabled, one-time expiring invite tokens. Design in `09-admin-access.md`.
+- **Slot rules (2026-11-23):** last slot must end by closing time (anchored to opening time); `buffer_minutes` = 0. Pending bookings hold a slot for 10 minutes unless the WhatsApp message is marked sent; first booking wins (partial unique index), no multi-patient capacity.
+- **Subdomain/domain:** not yet chosen; localhost now, canonical origin from `SITE_ORIGIN` or the request host.
 
 ## Open (owner to decide before/during build)
 1. **Platform Root Domain (`VITE_ROOT_DOMAIN`):** Confirm the wildcard domain you will buy/use for client demos and subdomains (e.g., `yourstudio.my` or `pages.yourstudio.my`).
