@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 750" role="img">
+  <defs>
+    <linearGradient id="bg4" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#E9E5EE"/>
+      <stop offset="1" stop-color="#D0C7DA"/>
+    </linearGradient>
+    <linearGradient id="coat4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FEFDFF"/>
+      <stop offset="1" stop-color="#EDE8F3"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="750" fill="url(#bg4)"/>
+  <circle cx="495" cy="115" r="195" fill="#FFFFFF" opacity="0.21"/>
+  <circle cx="105" cy="650" r="175" fill="#FFFFFF" opacity="0.14"/>
+  <g stroke="#4A3F5E" stroke-opacity="0.08">
+    <path d="M0 150h600M0 300h600M0 450h600M0 600h600M150 0v750M300 0v750M450 0v750"/>
+  </g>
+  <ellipse cx="300" cy="720" rx="250" ry="60" fill="#4A3F5E" opacity="0.08"/>
+  <path d="M120 750c0-118 70-200 180-200s180 82 180 200Z" fill="url(#coat4)"/>
+  <path d="M255 520h90v90c0 30-24 50-45 50s-45-20-45-50Z" fill="#E0B79A"/>
+  <ellipse cx="300" cy="330" rx="112" ry="132" fill="#F0CDB4"/>
+  <path d="M184 336c-8-102 44-162 116-162s124 60 116 162c-10-52-30-76-58-92-38 24-92 28-136 10-18 22-30 36-38 82Z" fill="#4B3428"/>
+  <path d="M250 188c34-36 96-32 126 14-38-14-92-16-126-14Z" fill="#4B3428"/>
+  <ellipse cx="258" cy="330" rx="9" ry="11" fill="#4B3428"/>
+  <ellipse cx="342" cy="330" rx="9" ry="11" fill="#4B3428"/>
+  <path d="M232 300c15-9 32-9 46-2M322 298c15-7 32-7 46 2" fill="none" stroke="#4B3428" stroke-width="5" stroke-linecap="round"/>
+  <path d="M296 356c0 16-3 26-10 32 8 4 17 5 28 2" fill="none" stroke="#D3A585" stroke-width="4" stroke-linecap="round"/>
+  <path d="M278 392c15 9 30 9 44 0" fill="none" stroke="#B57A5C" stroke-width="5" stroke-linecap="round"/>
+  <g fill="none" stroke="#4A3F5E" stroke-width="5">
+    <rect x="220" y="306" width="62" height="44" rx="14"/>
+    <rect x="318" y="306" width="62" height="44" rx="14"/>
+    <path d="M282 326h36M220 322l-18-8M380 322l18-8"/>
+  </g>
+  <path d="M300 500v-42M210 548l90 70 90-70" fill="none" stroke="#C1B6CE" stroke-width="5" stroke-linecap="round"/>
+  <path d="M196 578c-26 48-32 104-28 172M404 578c26 48 32 104 28 172" fill="none" stroke="#D5CEE0" stroke-width="4"/>
+  <circle cx="300" cy="612" r="10" fill="#4A3F5E"/>
+</svg>

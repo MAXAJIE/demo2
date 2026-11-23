@@ -1,0 +1,19 @@
+# 08 Open questions and assumptions
+
+## Resolved Decisions (Locked)
+- **Database Tenancy (`D2`):** Single shared Supabase database with `tenant_id` isolation + hostname routing (`*.yourdomain.my` and custom domains).
+- **M7 Setup Wizard:** Removed. Founder provisions new Malaysian SME tenants via SQL seed / super-admin script in <10 minutes.
+- **MVP Languages:** English (`en`) + Bahasa Melayu (`ms`) with automatic fallback. Simplified Chinese (`zh`) stays in the data model for legacy tenants but is no longer exposed in the Setapak switcher.
+- **Zero-PII Compliance:** Sensitive customer details and payment receipt screenshots are forwarded via Edge Function webhook to the merchant's WhatsApp/Google Sheet and are NOT stored in Postgres.
+
+## Open (owner to decide before/during build)
+1. **Platform Root Domain (`VITE_ROOT_DOMAIN`):** Confirm the wildcard domain you will buy/use for client demos and subdomains (e.g., `yourstudio.my` or `pages.yourstudio.my`).
+2. **M2 Merchant Proof Relay Target:** For `manual_qr_proof` in M2, confirm whether the Edge Function should relay order + receipt details to a **Make.com / Google Apps Script webhook URL** (configured per tenant in `site_settings.payment_config`) plus Resend email, alongside the customer's one-tap `wa.me` WhatsApp redirect.
+3. **Carbon Navy exact hex** (`06-design-system.md`): Currently `#2B3140` paired with `#B8C7C0`. Confirm or adjust during M0.
+4. **Super-Admin Bootstrap Email:** Provide the founder email address to seed into `platform_admins` in `supabase/seed.sql`.
+5. **Doctor directory content:** Confirm the real doctor names, roles, bios, languages and portrait files. Dr. Lim and Dr. Karwitta Krishnan are named in existing Google reviews; Dr. Tan and Dr. Nabila and all bios are demo placeholders. Replace `doctors.intro.items` in `backend/app/seed.py` and the `/images/doctor-placeholder-*.svg` files before launch.
+
+## Assumptions made (change if wrong)
+- Default currency is `MYR` (`RM`), and default timezone is `Asia/Kuala_Lumpur`.
+- Booking `approval` mode is active in Phase 1; `auto` confirm is schema-ready but UI-disabled until Phase 2.
+- Four theme presets (`slate-mist`, `carbon-sage`, `crimson-pearl`, `sandalwood-plum`) and four universal business archetypes (`appointment`, `group_session`, `catalog_order`, `showcase_lead`) ship in Phase 1.

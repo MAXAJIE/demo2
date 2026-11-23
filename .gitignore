@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.venv/
+backend/.venv/
+
+# Build output
+frontend/dist/
+
+# Local runtime data
+backend/.env
+backend/data/*.db
+backend/data/*.db-journal
+backend.log
+frontend.log
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local backups and tooling caches
+.backup/
+.wrangler/
+frontend/.wrangler/
+
