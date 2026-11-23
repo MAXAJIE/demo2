@@ -1,0 +1,32 @@
+# Cloudflare Pages project for the CoreSite SPA and its SEO Pages Functions.
+#
+# Deploy: connect the repository in the Pages dashboard (build command
+# `npm install && npm run build` in frontend/, output directory `dist`), or run
+# `npx wrangler pages deploy` from the repository root. Pages Functions are read
+# from ./functions automatically; functions/_routes.json keeps /assets/* and the
+# static files out of them.
+
+name = "coresite-my"
+
+# Relative to this file: the Vite build output. Pin the same directory as the
+# Pages build output directory in the dashboard.
+pages_build_output_dir = "frontend/dist"
+
+compatibility_date = "2026-11-23"
+
+# Environment variables are not committed. Set them in the Pages project
+# (Settings -> Environment variables and Secrets) or in a local .dev.vars file:
+#
+#   SUPABASE_URL       = https://<project-ref>.supabase.co
+#                        Read by the Pages Functions (tenant + bundle lookup).
+#   SUPABASE_ANON_KEY  = <anon public key>
+#                        Read by the Pages Functions. Anon only: RLS and the
+#                        definer RPCs guard all data.
+#   VITE_SUPABASE_URL  = https://<project-ref>.supabase.co
+#                        Inlined by Vite at build time and read by the SPA.
+#
+# The Functions call only two anonymous RPCs: resolve_tenant_by_host(host) and
+# site_bundle(host, slug). Never put SUPABASE_SERVICE_ROLE_KEY in this project.
+
+# [vars]
+# SUPABASE_URL = "https://<project-ref>.supabase.co"   # placeholders only; keep real values out of git

@@ -245,3 +245,7 @@ Known limitation: no individual Google review text was available through the pub
 - Added `scripts/sql/dump-seed.mjs`: generates `0005_seed.sql` from the demo database plus the public bundle, so Malay and Chinese strings are already filled in and locales are always en/ms/zh.
 - `frontend/src/lib/api.ts` is now a facade over `frontend/src/lib/gateway/`: `rest` stays the default, and `local` (bundled seed + localStorage, demo login `owner@demo.local` / `demo1234`) runs the whole app with no backend. 13 new contract tests cover slots, holds, tokens, leads and the admin dashboard.
 - The seed bundle is imported on demand, so neither the rest nor the Supabase build downloads it.
+### Platform invites and the deploy guide
+
+- Added `0006_admin.sql`: `admin_create_invite()` mints a 64-char one-time token (stored as sha256, returned once) for a tenant role or a platform admin, and `platform_overview()` returns every tenant with pending bookings, new leads and published services for the owner console. 47 PGlite checks now pass.
+- Added `docs/10-deploy.md`: Cloudflare Pages + Supabase setup, environment variables, migration order, custom domain, the three local data-source modes, and the post-deploy curl matrix.
