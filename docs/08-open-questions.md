@@ -42,3 +42,9 @@
 - **Realtime communication.** Supabase Realtime on bookings/offerings/site_settings so the site and the admin calendar reflect each other live (slots, confirmations/cancellations, service and settings edits).
 - **Premium admin theme.** The backstage gets its own dark premium theme (deep ink + gold/amber accent, proposed); tenant sites keep the current light theme.
 - **Hidden dev console.** No nav link anywhere; `/platform` on the admin host is reachable only by the platform_admin account, which sees every workspace.
+
+## Backstage batch status (2026-11-23)
+
+- **Done and tested here:** SQL auto-confirm + `admin_create_booking` + `day_schedule` + offering images + realtime publication (48 PGlite checks); gateway methods with 43 local/Supabase adapter tests; calendar + services wizard + dark rail (59 frontend tests); site and backstage builds separate (site entry ~174 kB, backstage ~74 kB + admin chunk); Pages Functions updated because `/manage` left the site (12 node tests).
+- **Not verified here:** no live Supabase project and no browser, so the croppers, the hover rail, realtime push and the dark-theme contrast were not clicked through. The image bucket (`service-images`, public read) must be created in Supabase before uploads work; the local demo returns 501 by design.
+- **Known gaps:** the platform console lists workspaces but cannot switch into another tenant's admin yet (it needs a platform-scoped tenant selector); legacy site/admin copy still contains some trailing full stops that the new copy rule no longer allows; the footer backstage link is build-time (`VITE_BACKSTAGE_URL`) and defaults to the dev port 5174.

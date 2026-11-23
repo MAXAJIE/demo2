@@ -268,3 +268,13 @@ Known limitation: no individual Google review text was available through the pub
 - Removed `/manage` and `/platform` from the tenant site and linked the footer to the backstage host (`VITE_BACKSTAGE_URL`); `/manage` is no longer a known site path in the Pages Functions, robots or sitemap.
 - Backstage gets its own premium dark theme (`src/admin/admin.css`: deep ink surfaces, gold accent) and an icon-only rail that expands on hover while the work area blurs behind it.
 - Adapter additions for the backstage: `adminCreateBooking`, `daySchedule`, `uploadServiceImage` and realtime `subscribeBookings`/`subscribeOfferings`; local demo data now auto-confirms bookings (43 frontend tests).
+
+### Backstage: calendar, services wizard, live sync
+
+- Day schedule at `/calendar`: one-day timeline merging booked rows (time, name, service, ref, status) with free slots, plus prev/next/Today and a shared date
+- Front-desk booking on the same page: published service, date, a free slot, name, phone, language -> `admin_create_booking`; on success it shows the ref and the WhatsApp confirmation link and refreshes the day; `slot_unavailable`/`slot_taken` are handled with a refresh
+- Services editor rebuilt as a wizard (Details -> Pricing -> Images -> Review) with English, Bahasa Melayu and Chinese for title/summary/note, ringgit to cents, and cover (4:5) + detail (16:9) canvas croppers that preview the exact upload
+- Offering `images` (cover/detail URLs) wired through `types.ts`, the Supabase adapter select/mapping/patch whitelist and migration 0007
+- Realtime: the site booking page and confirmation page refresh when the backstage changes a booking; the calendar refreshes when the site books; the lazy subscribe wrapper now unsubscribes correctly if cleanup runs before the adapter resolves
+- Backstage form controls (`.field`, `.label`, `.btn-outline`, skeleton) re-themed for the dark surface
+
