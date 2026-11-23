@@ -5,7 +5,7 @@
  *
  *   - every migration applies from empty, in order
  *   - first booking wins: the partial unique index rejects a second active slot
- *   - cancelling (or releasing a hold) frees the slot again
+ *   - cancelling frees the slot again
  *   - tenant isolation helpers exist and behave
  *
  * Supabase pieces that PGlite cannot provide (the auth schema and auth.uid())
@@ -165,8 +165,8 @@ async function insertBooking(ref, status, startsAt = "2026-12-01T02:00:00Z", ten
 
 await seedMinimal();
 
-await check("a pending booking occupies the slot", async () => {
-  await insertBooking("AAA-0001", "pending");
+await check("a confirmed booking occupies the slot", async () => {
+  await insertBooking("AAA-0001", "confirmed");
 });
 
 await rejects(
@@ -186,7 +186,7 @@ await check("the same slot in another tenant is allowed", async () => {
        (tenant_id, booking_ref, offering_id, starts_at, ends_at, status,
         customer_display_name, customer_contact_masked, cancel_token_hash, consent_at)
      values ($1, 'BBB-0001', '44444444-4444-4444-4444-444444444444',
-             '2026-12-01T02:00:00Z', '2026-12-01T02:45:00Z', 'pending',
+             '2026-12-01T02:00:00Z', '2026-12-01T02:45:00Z', 'confirmed',
              'Other', '012-***789', 'hash-bbb0001', now())`,
     [otherTenantId],
   );
@@ -296,7 +296,7 @@ await check("an existing booking removes exactly that slot", async () => {
        (tenant_id, booking_ref, offering_id, starts_at, ends_at, status,
         customer_display_name, customer_contact_masked, cancel_token_hash, consent_at)
      values ($1, 'SLOT-HOLD-1', $2, $3, $3::timestamptz + interval '60 minutes',
-             'pending', 'Slot Test', '6012***789', 'hash-slot-1', now())`,
+             'confirmed', 'Slot Test', '6012***789', 'hash-slot-1', now())`,
     [tenantId, offeringId, first.starts_at],
   );
   const after = await asUser(null, "anon", async () => {
@@ -451,7 +451,7 @@ const created = await asUser(null, "anon", async () => {
 await check("a booking is created with a ref, a token and a WhatsApp link", async () => {
   assert(/^[A-Z]{3}-\d{6}-[0-9A-F]{4}$/.test(created.booking.ref), created.booking.ref);
   assert(created.booking.cancel_token.length === 32, `token=${created.booking.cancel_token}`);
-  assert(created.booking.status === "pending", created.booking.status);
+  assert(created.booking.status === "confirmed", created.booking.status);
   assert(created.whatsapp_url.startsWith("https://wa.me/60123456789?text="), created.whatsapp_url);
 });
 
@@ -526,7 +526,7 @@ await rejects(
   /booking_not_found/,
 );
 
-await check("marking the WhatsApp message sent keeps the hold", async () => {
+await check("marking the WhatsApp message sent does not release a confirmed booking", async () => {
   await asUser(null, "anon", () =>
     db.query(`select public.mark_whatsapp_sent($1, $2, '127.0.0.1')`, [
       created.booking.ref,
@@ -542,42 +542,67 @@ await check("marking the WhatsApp message sent keeps the hold", async () => {
     `select status, whatsapp_sent_at from public.bookings where booking_ref = $1`,
     [created.booking.ref],
   );
-  assert(result.rows[0].status === "pending", "a sent request must not be released");
+  assert(result.rows[0].status === "confirmed", "a confirmed booking must not be released");
   assert(result.rows[0].whatsapp_sent_at !== null, "whatsapp_sent_at should be set");
 });
 
-const holdBooking = await asUser(null, "anon", async () => {
-  const result = await db.query(
-    `select public.create_booking('checkup', $1::timestamptz, 'Hold Test', '0127777777', 'en', true, '127.0.0.1') as payload`,
-    [slotB.starts_at],
-  );
-  return result.rows[0].payload;
-});
-
-await check("an unsent hold older than 10 minutes is released", async () => {
-  await db.query(
-    `update public.bookings set created_at = now() - interval '11 minutes' where booking_ref = $1`,
-    [holdBooking.booking.ref],
-  );
-  const released = await db.query("select public.release_expired_holds($1) as n", [tenantId]);
-  assert(released.rows[0].n >= 1, `released=${released.rows[0].n}`);
-  const row = await db.query(
-    `select status from public.bookings where booking_ref = $1`,
-    [holdBooking.booking.ref],
-  );
-  assert(row.rows[0].status === "cancelled", row.rows[0].status);
-});
-
-await check("the released slot can be booked again", async () => {
-  const again = await asUser(null, "anon", async () => {
-    const result = await db.query(
-      `select public.create_booking('checkup', $1::timestamptz, 'Reuse Test', '0125555555', 'en', true, '127.0.0.1') as payload`,
-      [slotB.starts_at],
-    );
-    return result.rows[0].payload;
+await check("day_schedule exposes free slots, and a front-desk booking moves one to booked", async () => {
+  const schedule0 = await asUser(userA, "authenticated", async () => {
+    const r = await db.query("select public.day_schedule($1, '2026-11-30') as payload", [tenantId]);
+    return r.rows[0].payload;
   });
-  assert(again.booking.status === "pending", again.booking.status);
+  assert(Array.isArray(schedule0.free) && schedule0.free.length > 0, "expected free Monday slots");
+  assert(Array.isArray(schedule0.booked), "booked must be an array");
+  const slot = schedule0.free[0];
+
+  const booked = await asUser(userA, "authenticated", async () => {
+    const r = await db.query(
+      `select public.admin_create_booking('checkup', $1::timestamptz, 'Walk In', '0121112222', 'en', $2) as payload`,
+      [slot.starts_at, tenantId],
+    );
+    return r.rows[0].payload;
+  });
+  assert(booked.booking.status === "confirmed", booked.booking.status);
+  assert(booked.booking.customer_contact_masked === "6012***222", booked.booking.customer_contact_masked);
+  assert(booked.whatsapp_url.startsWith("https://wa.me/60123456789?text="));
+
+  const schedule1 = await asUser(userA, "authenticated", async () => {
+    const r = await db.query("select public.day_schedule($1, '2026-11-30') as payload", [tenantId]);
+    return r.rows[0].payload;
+  });
+  assert(schedule1.booked.some((b) => b.time === slot.time), "the walk-in should appear as booked");
+  assert(!schedule1.free.some((s) => s.time === slot.time), "the booked slot must no longer be free");
 });
+
+await rejects(
+  "the front desk cannot double-book the same slot",
+  async () => {
+    const schedule = await asUser(userA, "authenticated", async () => {
+      const r = await db.query("select public.day_schedule($1, '2026-11-30') as payload", [tenantId]);
+      return r.rows[0].payload;
+    });
+    const taken = schedule.booked.find((b) => b.name === "Walk In");
+    return asUser(userA, "authenticated", () =>
+      db.query(
+        "select public.admin_create_booking('checkup', $1::timestamptz, 'Second', '0123334444', 'en', $2)",
+        [taken.starts_at, tenantId],
+      ),
+    );
+  },
+  /slot_unavailable|slot_taken/,
+);
+
+await rejects(
+  "a non-member cannot use the front-desk booking",
+  () =>
+    asUser(userB, "authenticated", () =>
+      db.query(
+        "select public.admin_create_booking('checkup', '2026-11-30T04:00:00Z'::timestamptz, 'Intruder', '0123334444', 'en', $1)",
+        [tenantId],
+      ),
+    ),
+  /forbidden/,
+);
 
 const lead = await asUser(null, "anon", async () => {
   const result = await db.query(
@@ -659,7 +684,7 @@ const overview = await asUser(userA, "authenticated", async () => {
 
 await check("admin_overview reports counts and upcoming bookings", async () => {
   assert(overview.tenant.slug === "test-tenant", overview.tenant?.slug);
-  assert(overview.counts.pending_bookings >= 1, JSON.stringify(overview.counts));
+  assert(overview.counts.pending_bookings === 0, "auto-confirm leaves nothing pending");
   assert(Array.isArray(overview.upcoming) && overview.upcoming.length >= 1);
   assert(overview.upcoming[0].ref, "upcoming rows need a ref");
 });

@@ -256,3 +256,8 @@ Known limitation: no individual Google review text was available through the pub
 - Added the Supabase adapter and lazy data-source selection: `supabase` when `VITE_SUPABASE_URL` is configured, `local` (bundled seed, no backend) otherwise, `rest` only on request. The 47 KB seed and supabase-js stay out of the other modes' entry chunk.
 - Added the `/platform` owner console (tenant overview, invite minting with a one-time token, invite list, members) and invite-claim on `/manage/login`. Platform-only accounts can sign in without a tenant membership.
 - Updated README, AGENTS.md (architecture, no-backend rule, data-path rule, definition of done) and docs/10-deploy.md for the new shape.
+### Auto-confirm and the front-desk calendar (SQL)
+
+- `0007_autoconfirm_and_admin_booking.sql`: every booking is now `confirmed` immediately (first booked wins, no approval hop); the 10-minute pending hold is retired with the `pending` state. Added `offerings.images` (cover + detail URLs), `admin_create_booking()` for a caller booked over the phone (shares the same unique index, prepares the same WhatsApp link), `slot_available()` and `day_schedule()` (booked + free slots for one day).
+- `0008_realtime.sql`: adds `bookings`, `offerings` and `site_settings` to the Supabase Realtime publication (guarded no-op under PGlite).
+- `tests/sql/run.mjs` grew to 48 checks covering auto-confirm, front-desk booking (double-book and non-member refusals) and the day schedule.

@@ -30,3 +30,15 @@
 - **Not verified here:** no live Supabase project (RPC JSON shapes trusted from the migrations; RLS exercised in PGlite with a shim), no real Pages deploy (`wrangler` routing and `ASSETS` behaviour rest on documented behaviour), no browser/headless smoke test (none installed), so the `/platform` console and invite claim were type-checked and unit-tested but not clicked through.
 - **Known gaps to close before real bookings:** Turnstile verification, a trusted client IP for rate limiting (must come from a Pages Function proxy), payment proof upload (intentionally 501), platform-to-tenant switching (the console links to the public site instead), and the theme preset catalogue (only the current preset is exposed).
 - **Canonical URLs** come from the requested host in the Pages Function; the tenant's primary domain is not yet preferred (set it when the clinic's domain exists).
+
+
+## Admin-console roadmap decisions (2026-11-23, owner-approved)
+
+- **Standalone admin site.** One shared backstage on its own host (e.g. admin.yourdomain.my) serving every tenant; login + account picks the workspace. `/manage` and `/platform` are removed from the tenant marketing site. New customer = one tenant row + one account (zero marginal cost).
+- **Auto-confirm.** Every booking (online and front-desk) is written `status = confirmed` immediately; the approval hop is gone. `payment_verified` stays separate and is set later by the WhatsApp proof step. The 10-minute unsent hold is retired with the `pending` state.
+- **Front-desk appointment.** Staff can add a booking for a caller (service -> day -> free slot -> name + phone) through a new `admin_create_booking` RPC that shares the first-booked-wins unique index; the system prepares the same WhatsApp confirmation link for staff to send.
+- **Day schedule view.** One-day timeline of booked slots (time, name, service, status) plus the remaining free slots.
+- **Services editor = step-by-step wizard** (Details EN/MS/ZH -> Pricing -> Image -> Review, Next/Preview/Submit) with cover + detail images cropped client-side to two fixed aspect ratios and uploaded to a Supabase Storage bucket.
+- **Realtime communication.** Supabase Realtime on bookings/offerings/site_settings so the site and the admin calendar reflect each other live (slots, confirmations/cancellations, service and settings edits).
+- **Premium admin theme.** The backstage gets its own dark premium theme (deep ink + gold/amber accent, proposed); tenant sites keep the current light theme.
+- **Hidden dev console.** No nav link anywhere; `/platform` on the admin host is reachable only by the platform_admin account, which sees every workspace.
