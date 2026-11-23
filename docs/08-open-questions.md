@@ -21,3 +21,12 @@
 - Default currency is `MYR` (`RM`), and default timezone is `Asia/Kuala_Lumpur`.
 - Booking `approval` mode is active in Phase 1; `auto` confirm is schema-ready but UI-disabled until Phase 2.
 - Four theme presets (`slate-mist`, `carbon-sage`, `crimson-pearl`, `sandalwood-plum`) and four universal business archetypes (`appointment`, `group_session`, `catalog_order`, `showcase_lead`) ship in Phase 1.
+
+
+## Implementation status (2026-11-23)
+
+- **Frontend-only:** the FastAPI service is archived; `scripts/serve-dist.mjs` serves the static build locally and Cloudflare Pages serves it in production.
+- **Verified here:** the SQL layer (47 PGlite checks), the Pages Function SEO port (12 node tests, byte-identical to the old Python output), the local data adapter and the platform console (40 vitest tests), production builds in all three data-source modes.
+- **Not verified here:** no live Supabase project (RPC JSON shapes trusted from the migrations; RLS exercised in PGlite with a shim), no real Pages deploy (`wrangler` routing and `ASSETS` behaviour rest on documented behaviour), no browser/headless smoke test (none installed), so the `/platform` console and invite claim were type-checked and unit-tested but not clicked through.
+- **Known gaps to close before real bookings:** Turnstile verification, a trusted client IP for rate limiting (must come from a Pages Function proxy), payment proof upload (intentionally 501), platform-to-tenant switching (the console links to the public site instead), and the theme preset catalogue (only the current preset is exposed).
+- **Canonical URLs** come from the requested host in the Pages Function; the tenant's primary domain is not yet preferred (set it when the clinic's domain exists).

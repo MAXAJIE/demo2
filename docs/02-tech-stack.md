@@ -49,3 +49,15 @@ Supabase hosts database, auth, storage, and Edge Functions. The frontend SPA dep
 - **D3 Vite SPA, not Next.js:** Static edge deployment on Cloudflare Pages / Vercel with wildcard domains and full compatibility with Lovable.
 - **D4 GitHub Single Source of Truth:** Because development rotates between Lovable, OpenCode, and DeepAI Code, all agents must pull/push through GitHub and write schema changes exclusively in `supabase/migrations/*.sql`.
 - **D5 Zero-PII Forwarding Architecture:** Customer payment receipts and sensitive contact details are relayed immediately via Edge Function webhook to the merchant's WhatsApp/Google Sheet and purged/omitted from Postgres storage to minimize PDPA liability.
+
+## Implementation note (2026-11-23, supersedes service details above)
+
+The approved stack is implemented as a **frontend-only deploy**:
+
+- Static SPA on Cloudflare Pages; no backend service runs anywhere.
+- Supabase hosts Postgres, RLS policies and the business RPCs; the browser uses only
+  the anon key. See `supabase/migrations/0001`–`0006` and `docs/10-deploy.md`.
+- The few server-side behaviours (per-tenant HTML head, robots/sitemap, 404 status)
+  are Cloudflare Pages Functions in `functions/`.
+- The earlier FastAPI + SQLite implementation is archived in `archive/backend/` and
+  is not part of the deploy.

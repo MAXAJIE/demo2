@@ -72,9 +72,9 @@ Three data sources, chosen at build/run time by `VITE_DATA_SOURCE`:
 
 | Mode | Command | Talks to |
 |---|---|---|
-| `rest` (default) | `npm run dev` | the FastAPI demo on `127.0.0.1:8011` |
-| `local` | `VITE_DATA_SOURCE=local npm run dev` | bundled seed + localStorage, **no backend** |
-| `supabase` | `VITE_DATA_SOURCE=supabase VITE_SUPABASE_URL=... VITE_SUPABASE_ANON_KEY=... npm run dev` | your Supabase project |
+| `rest` | `VITE_DATA_SOURCE=rest npm run dev` | the archived FastAPI demo (`archive/backend/`), if you start it |
+| `local` (default without Supabase config) | `npm run dev` | bundled seed + localStorage, **no backend** |
+| `supabase` (default when configured) | set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` | your Supabase project |
 
 `local` demo login: `owner@demo.local` / `demo1234` (UI demo only, not security).
 

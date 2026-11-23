@@ -249,3 +249,10 @@ Known limitation: no individual Google review text was available through the pub
 
 - Added `0006_admin.sql`: `admin_create_invite()` mints a 64-char one-time token (stored as sha256, returned once) for a tenant role or a platform admin, and `platform_overview()` returns every tenant with pending bookings, new leads and published services for the owner console. 47 PGlite checks now pass.
 - Added `docs/10-deploy.md`: Cloudflare Pages + Supabase setup, environment variables, migration order, custom domain, the three local data-source modes, and the post-deploy curl matrix.
+
+### Frontend-only architecture (backend retired)
+
+- Retired the FastAPI + SQLite service: `backend/` moved to `archive/backend/` and nothing starts it. The demo on `:8011` is now `scripts/serve-dist.mjs` serving the static build with SPA fallback.
+- Added the Supabase adapter and lazy data-source selection: `supabase` when `VITE_SUPABASE_URL` is configured, `local` (bundled seed, no backend) otherwise, `rest` only on request. The 47 KB seed and supabase-js stay out of the other modes' entry chunk.
+- Added the `/platform` owner console (tenant overview, invite minting with a one-time token, invite list, members) and invite-claim on `/manage/login`. Platform-only accounts can sign in without a tenant membership.
+- Updated README, AGENTS.md (architecture, no-backend rule, data-path rule, definition of done) and docs/10-deploy.md for the new shape.
