@@ -20,6 +20,10 @@ export function Footer() {
     .split("·")[0]
     .trim();
   const waHref = `https://wa.me/${normalizePhone(contact.whatsapp)}`;
+  // The backstage is a separate app on its own host; this is the only link to it.
+  const backstageUrl = import.meta.env.VITE_BACKSTAGE_URL ?? "http://localhost:5174";
+  const backstageLabel =
+    locale === "zh" ? "员工登录" : locale === "ms" ? "Log masuk staf" : "Staff sign-in";
 
   const navItems = [
     { to: "/", label: translate("nav.home") },
@@ -120,6 +124,16 @@ export function Footer() {
 
         <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-relaxed text-white/70">
           {translate("footer.medicalNote")}
+        </p>
+
+        <p className="mt-5 text-center text-xs text-white/60">
+          <a
+            href={backstageUrl}
+            className="inline-flex min-h-11 items-center px-1 underline decoration-white/25 underline-offset-4 transition hover:text-on-brand"
+            rel="noreferrer"
+          >
+            {backstageLabel}
+          </a>
         </p>
       </div>
     </footer>

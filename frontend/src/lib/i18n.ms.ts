@@ -322,5 +322,8 @@ export const ms = {
       unknownTenant: "Laman ini tidak tersedia.",
       loadFailed: "Laman tidak dapat dimuatkan.",
     },
+    admin: {
+      calendar: "Kalendar",
+    },
   },
 } as const;

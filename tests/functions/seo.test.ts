@@ -159,10 +159,6 @@ test("isKnownPath matches the SPA router and the Python rules", () => {
     "/services",
     "/services/scaling-polishing-checkup",
     "/booking/AAA-0001",
-    "/manage/login",
-    "/manage/bookings",
-    // seo.py treats every /manage/* path as known (the admin SPA does its own auth).
-    "/manage/login/extra",
     "/about/",
   ]) {
     assert.equal(isKnownPath(path, BUNDLE), true, path);
@@ -175,6 +171,9 @@ test("isKnownPath matches the SPA router and the Python rules", () => {
     "/services/scaling-polishing-checkup/extra",
     "/about/extra",
     "/booking",
+    // The backstage is its own app now, so these are not site pages.
+    "/manage",
+    "/manage/login",
   ]) {
     assert.equal(isKnownPath(path, BUNDLE), false, path);
     assert.equal(statusFor(path, BUNDLE), 404, path);
@@ -192,7 +191,6 @@ test("robotsTxt matches the Python output exactly", () => {
   const expected =
     "User-agent: *\n" +
     "Allow: /\n" +
-    "Disallow: /manage\n" +
     "Disallow: /booking/\n" +
     "Disallow: /api/\n" +
     "Sitemap: https://setapak-dental-jb.localhost/sitemap.xml\n";

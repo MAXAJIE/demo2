@@ -31,8 +31,8 @@ const inviteCopy = {
 
 /** Only same-origin paths are honoured, so `next` cannot become an open redirect. */
 function safeNext(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/manage";
-  if (value.startsWith("/manage/login")) return "/manage";
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+  if (value.startsWith("/login")) return "/";
   return value;
 }
 

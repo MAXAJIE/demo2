@@ -1,6 +1,7 @@
 import type {
   AdminBooking,
   AdminFaq,
+  AdminBookingInput,
   AdminInvite,
   AdminLead,
   AdminMember,
@@ -8,6 +9,7 @@ import type {
   AdminSessionResponse,
   AdminSettings,
   AvailabilityResponse,
+  DaySchedule,
   BookingResponse,
   BookingStatusResponse,
   LeadResponse,
@@ -89,4 +91,13 @@ export interface DataGateway {
     role: string;
   }>;
   adminListMembers(tenantId: string): Promise<{ members: AdminMember[] }>;
+  /** Front desk books a caller; confirmed immediately, same slot rules. */
+  adminCreateBooking(input: AdminBookingInput): Promise<BookingResponse>;
+  /** Booked + free slots for one day in the tenant timezone. */
+  daySchedule(date: string): Promise<DaySchedule>;
+  /** Upload a cropped service image; returns its public URL. */
+  uploadServiceImage(file: File, kind: "cover" | "detail"): Promise<{ url: string }>;
+  /** Live changes; returns an unsubscribe function. */
+  subscribeBookings(onChange: () => void): () => void;
+  subscribeOfferings(onChange: () => void): () => void;
 }

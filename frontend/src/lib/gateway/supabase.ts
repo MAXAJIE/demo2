@@ -15,6 +15,7 @@
 import type {
   AdminBooking,
   AdminFaq,
+  AdminBookingInput,
   AdminInvite,
   AdminMember,
   AdminLead,
@@ -25,6 +26,7 @@ import type {
   BookingResponse,
   BookingStatus,
   BookingStatusResponse,
+  DaySchedule,
   I18nText,
   LeadResponse,
   Locale,
@@ -108,9 +110,31 @@ export interface SupabaseSignInResult {
   session: SupabaseSession | null;
 }
 
+export interface SupabaseChannelLike {
+  on(
+    event: string,
+    filter: { event: string; schema: string; table: string; filter?: string },
+    callback: (payload: unknown) => void,
+  ): SupabaseChannelLike;
+  subscribe(): SupabaseChannelLike;
+  unsubscribe(): void;
+}
+
+export interface SupabaseBucketLike {
+  upload(
+    path: string,
+    file: File,
+    options?: { upsert?: boolean; contentType?: string },
+  ): PromiseLike<SupabaseResult<{ path: string }>>;
+  getPublicUrl(path: string): { data: { publicUrl: string } };
+}
+
 export interface SupabaseLike {
   rpc(name: string, params?: Row): PromiseLike<SupabaseResult<unknown>>;
   from(table: string): SupabaseTable;
+  /** Optional so tests can pass a fake without Storage/Realtime. */
+  storage?: { from(bucket: string): SupabaseBucketLike };
+  channel?: (name: string) => SupabaseChannelLike;
   auth: {
     signInWithPassword(credentials: {
       email: string;
@@ -734,6 +758,16 @@ export function createSupabaseGateway(client: SupabaseLike): DataGateway {
     return row;
   }
 
+  /** Realtime: RLS limits the rows the anon user may see. */
+  function subscribeTable(table: string, onChange: () => void): () => void {
+    if (typeof client.channel !== "function") return () => undefined;
+    const channel = client.channel(`coresite-${table}-${Math.random().toString(16).slice(2)}`);
+    channel
+      .on("postgres_changes", { event: "*", schema: "public", table }, () => onChange())
+      .subscribe();
+    return () => channel.unsubscribe();
+  }
+
   return {
     setActiveTenant(slug: string | null): void {
       activeTenant = slug;
@@ -1048,6 +1082,49 @@ export function createSupabaseGateway(client: SupabaseLike): DataGateway {
         tenant_id: typeof payload.tenant_id === "string" ? payload.tenant_id : null,
         role: asText(payload.role),
       };
+    },
+
+    async adminCreateBooking(input: AdminBookingInput): Promise<BookingResponse> {
+      const response = await callRpc<Row>("admin_create_booking", {
+        p_offering_slug: input.offering_slug,
+        p_starts_at: input.starts_at,
+        p_customer_name: input.customer_name,
+        p_customer_phone: input.customer_phone,
+        p_locale: input.locale,
+        p_tenant: input.tenantId ?? null,
+      });
+      return response as unknown as BookingResponse;
+    },
+
+    async daySchedule(date: string): Promise<DaySchedule> {
+      const tenantId = await adminTenant();
+      return callRpc<DaySchedule>("day_schedule", { p_tenant: tenantId, p_date: date });
+    },
+
+    async uploadServiceImage(file: File, kind: "cover" | "detail"): Promise<{ url: string }> {
+      const tenantId = await adminTenant(["owner", "manager"]);
+      const bucket = client.storage?.from("service-images");
+      if (!bucket) {
+        throw new ApiError("Image upload needs Supabase Storage", 501, "storage_unconfigured");
+      }
+      const extension = (file.name.split(".").pop() ?? "jpg").toLowerCase();
+      const path = `${tenantId}/${kind}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}.${extension}`;
+      const { error } = await bucket.upload(path, file, {
+        upsert: true,
+        contentType: file.type || "image/jpeg",
+      });
+      if (error) {
+        throw new ApiError(error.message || "Upload failed", error.status ?? 500, "upload_failed");
+      }
+      return { url: bucket.getPublicUrl(path).data.publicUrl };
+    },
+
+    subscribeBookings(onChange: () => void): () => void {
+      return subscribeTable("bookings", onChange);
+    },
+
+    subscribeOfferings(onChange: () => void): () => void {
+      return subscribeTable("offerings", onChange);
     },
 
     async adminListMembers(tenantId: string): Promise<{ members: AdminMember[] }> {

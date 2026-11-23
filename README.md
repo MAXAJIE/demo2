@@ -8,7 +8,7 @@ owner console. Built to the CoreSite MY multi-tenant spec, currently for one ten
 Supabase (Postgres + RLS + auth) and the few server-side bits are Cloudflare Pages
 Functions deployed with the site. There is no backend service to host.
 
-- `frontend/` — React 18 + TypeScript + Vite + Tailwind (the only deployable)
+- `frontend/` — React 18 + TypeScript + Vite + Tailwind: the tenant site plus the backstage app under `src/admin`
 - `supabase/migrations/` — schema, RLS policies, RPCs and the generated demo seed
 - `functions/` — Cloudflare Pages Functions: per-tenant HTML head, `robots.txt`, `sitemap.xml`, 404/HEAD
 - `tests/` — `tests/sql` (PGlite) and `tests/functions` (node:test)
@@ -39,7 +39,7 @@ That is the whole app: the bundled demo seed plus `localStorage`, no backend at 
 | Surface | URL | Login |
 |---|---|---|
 | Site | `/` | — |
-| Front desk | `/manage` | `owner@demo.local` / `demo1234` (local demo only) |
+| Front desk | the backstage app (own host, `npm run dev:admin`) | `owner@demo.local` / `demo1234` (local demo only) |
 | Owner console | `/platform` | same demo account locally; a Supabase account listed in `platform_admins` in production |
 | Booking link | `/booking/<ref>#token=…` | the token is in the link |
 
@@ -52,7 +52,9 @@ once, for that email, within 72 hours. See `docs/09-admin-access.md`.
 ```bash
 cd frontend
 npm run build                                   # -> frontend/dist
-node ../scripts/serve-dist.mjs dist 8011        # local static server with SPA fallback
+node ../scripts/serve-dist.mjs dist 8011        # tenant site
+npm run build:admin                             # backstage -> frontend/dist-admin
+node ../scripts/serve-dist.mjs dist-admin 5175  # backstage preview
 ```
 
 Deployment (Cloudflare Pages + Supabase) is in `docs/10-deploy.md`. In production

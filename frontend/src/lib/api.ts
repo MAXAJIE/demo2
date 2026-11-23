@@ -1,5 +1,6 @@
 import type {
   AdminBooking,
+  AdminBookingInput,
   AdminFaq,
   AdminInvite,
   AdminMember,
@@ -10,6 +11,7 @@ import type {
   AvailabilityResponse,
   BookingResponse,
   BookingStatusResponse,
+  DaySchedule,
   LeadResponse,
   Offering,
   PlatformOverview,
@@ -161,4 +163,35 @@ export async function adminClaimInvite(token: string): Promise<{
 
 export async function adminListMembers(tenantId: string): Promise<{ members: AdminMember[] }> {
   return (await gateway()).adminListMembers(tenantId);
+}
+
+export async function adminCreateBooking(input: AdminBookingInput): Promise<BookingResponse> {
+  return (await gateway()).adminCreateBooking(input);
+}
+
+export async function daySchedule(date: string): Promise<DaySchedule> {
+  return (await gateway()).daySchedule(date);
+}
+
+export async function uploadServiceImage(
+  file: File,
+  kind: "cover" | "detail",
+): Promise<{ url: string }> {
+  return (await gateway()).uploadServiceImage(file, kind);
+}
+
+export function subscribeBookings(onChange: () => void): () => void {
+  let stop: (() => void) | null = null;
+  void gateway().then((adapter) => {
+    stop = adapter.subscribeBookings(onChange);
+  });
+  return () => stop?.();
+}
+
+export function subscribeOfferings(onChange: () => void): () => void {
+  let stop: (() => void) | null = null;
+  void gateway().then((adapter) => {
+    stop = adapter.subscribeOfferings(onChange);
+  });
+  return () => stop?.();
 }

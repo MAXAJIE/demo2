@@ -66,7 +66,7 @@ export function AdminOverviewPage() {
             <h2 className="font-display text-base font-semibold tracking-tight">
               {t("admin.upcoming")}
             </h2>
-            <Link to="/manage/bookings" className="text-xs font-semibold text-muted hover:text-ink">
+            <Link to="/bookings" className="text-xs font-semibold text-muted hover:text-ink">
               {t("admin.bookings")}
             </Link>
           </div>
@@ -105,7 +105,7 @@ export function AdminOverviewPage() {
             <h2 className="font-display text-base font-semibold tracking-tight">
               {t("admin.latestLeads")}
             </h2>
-            <Link to="/manage/leads" className="text-xs font-semibold text-muted hover:text-ink">
+            <Link to="/leads" className="text-xs font-semibold text-muted hover:text-ink">
               {t("admin.leads")}
             </Link>
           </div>

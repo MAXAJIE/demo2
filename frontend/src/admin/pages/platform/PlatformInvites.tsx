@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Loader2, Send } from "lucide-react";
 
-import { useTenant } from "../../app/tenant-context";
-import { ApiError, adminCreateInvite, adminListInvites } from "../../lib/api";
-import { cn, formatDateTime, text as pick } from "../../lib/utils";
-import type { AdminInvite, PlatformTenant } from "../../types";
+import { useTenant } from "../../../app/tenant-context";
+import { ApiError, adminCreateInvite, adminListInvites } from "../../../lib/api";
+import { cn, formatDateTime, text as pick } from "../../../lib/utils";
+import type { AdminInvite, PlatformTenant } from "../../../types";
 import { platformText, type PlatformCopyKey } from "./copy";
 
 const roles = ["owner", "manager", "staff", "platform"] as const;
@@ -108,7 +108,7 @@ export function PlatformInvites({ tenants }: { tenants: PlatformTenant[] }) {
   };
 
   const createdLink = created?.token
-    ? `${window.location.origin}/manage/login?invite=${encodeURIComponent(created.token)}`
+    ? `${window.location.origin}/login?invite=${encodeURIComponent(created.token)}`
     : "";
 
   const copyLink = async (value: string) => {

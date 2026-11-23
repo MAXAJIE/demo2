@@ -37,3 +37,4 @@ frontend/.wrangler/
 
 frontend/dist-local/
 frontend/dist-supabase/
+frontend/dist-admin/

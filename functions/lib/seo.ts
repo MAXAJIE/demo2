@@ -159,7 +159,6 @@ export function isKnownPath(path: string, bundle: Bundle): boolean {
   const parts = path.split("/").filter(Boolean);
   if (parts.length === 0) return true;
   const first = parts[0];
-  if (first === "manage") return true;
   if (parts.length === 1) return STATIC_PAGES.has(first);
   if (parts.length === 2 && first === "services") {
     const slugs = new Set(
@@ -183,7 +182,6 @@ export function robotsTxt(origin: string): string {
   return (
     "User-agent: *\n" +
     "Allow: /\n" +
-    "Disallow: /manage\n" +
     "Disallow: /booking/\n" +
     "Disallow: /api/\n" +
     `Sitemap: ${origin}/sitemap.xml\n`

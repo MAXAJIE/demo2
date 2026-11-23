@@ -6,7 +6,9 @@
   "scripts": {
     "test": "vitest run",
     "dev": "vite",
+    "dev:admin": "vite --config vite.admin.config.ts",
     "build": "tsc --noEmit && vite build",
+    "build:admin": "tsc --noEmit && vite build --config vite.admin.config.ts && node ../scripts/admin-index.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview"

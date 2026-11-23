@@ -261,3 +261,10 @@ Known limitation: no individual Google review text was available through the pub
 - `0007_autoconfirm_and_admin_booking.sql`: every booking is now `confirmed` immediately (first booked wins, no approval hop); the 10-minute pending hold is retired with the `pending` state. Added `offerings.images` (cover + detail URLs), `admin_create_booking()` for a caller booked over the phone (shares the same unique index, prepares the same WhatsApp link), `slot_available()` and `day_schedule()` (booked + free slots for one day).
 - `0008_realtime.sql`: adds `bookings`, `offerings` and `site_settings` to the Supabase Realtime publication (guarded no-op under PGlite).
 - `tests/sql/run.mjs` grew to 48 checks covering auto-confirm, front-desk booking (double-book and non-member refusals) and the day schedule.
+
+### Standalone backstage (admin app split)
+
+- Moved every backstage screen into `frontend/src/admin` with its own entry (`admin.html`) and build (`npm run build:admin` -> `frontend/dist-admin`). The tenant site no longer ships admin code (site entry 174 kB, backstage entry 74 kB + admin chunk 74 kB).
+- Removed `/manage` and `/platform` from the tenant site and linked the footer to the backstage host (`VITE_BACKSTAGE_URL`); `/manage` is no longer a known site path in the Pages Functions, robots or sitemap.
+- Backstage gets its own premium dark theme (`src/admin/admin.css`: deep ink surfaces, gold accent) and an icon-only rail that expands on hover while the work area blurs behind it.
+- Adapter additions for the backstage: `adminCreateBooking`, `daySchedule`, `uploadServiceImage` and realtime `subscribeBookings`/`subscribeOfferings`; local demo data now auto-confirms bookings (43 frontend tests).

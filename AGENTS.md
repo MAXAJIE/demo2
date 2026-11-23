@@ -10,7 +10,7 @@ Designed for **Lovable**, **OpenCode**, and **DeepAI Code** via a single GitHub 
 - **Data + auth: Supabase.** Schema, RLS and business rules are SQL in `supabase/migrations/`; the browser calls definer RPCs with the anon key. No server of ours.
 - **Server-side edge cases** live in Cloudflare Pages Functions (`functions/`): per-tenant HTML head, `robots.txt`, `sitemap.xml`, 404 statuses, and later Turnstile/webhook forwarding.
 - **One data contract.** Everything goes through `frontend/src/lib/gateway/` (`rest`, `local`, `supabase` adapters selected by `VITE_DATA_SOURCE`). Never call `fetch` or Supabase from a page directly; never add a fourth path.
-- **Two backstages.** `/manage` for the customer, `/platform` for the platform owner, invite-only (see `docs/09-admin-access.md`).
+- **Two backstages, one console.** The customer backstage and the dev-only `/platform` console live in `frontend/src/admin` and are built as their own app (`vite.admin.config.ts`, `admin.html`, `npm run build:admin`) on their own host. The tenant site has no `/manage` route; the footer links to the backstage URL. All backstage code stays inside `frontend/src/admin`. Invite-only (see `docs/09-admin-access.md`).
 - **Three locales**: `en`, `ms`, `zh`. CJK fonts load on demand only.
 
 ## Read order

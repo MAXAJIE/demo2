@@ -361,6 +361,37 @@ export interface PlatformOverview {
   tenants: PlatformTenant[];
 }
 
+export interface DayScheduleSlot {
+  time: string;
+  starts_at: string;
+}
+
+export interface DayScheduleBooking {
+  time: string;
+  starts_at: string;
+  ends_at: string;
+  ref: string;
+  name: string;
+  status: string;
+  service: string;
+}
+
+export interface DaySchedule {
+  date: string;
+  timezone: string;
+  booked: DayScheduleBooking[];
+  free: DayScheduleSlot[];
+}
+
+export interface AdminBookingInput {
+  offering_slug: string;
+  starts_at: string;
+  customer_name: string;
+  customer_phone: string;
+  locale: string;
+  tenantId?: string | null;
+}
+
 export interface AdminInvite {
   id: string;
   email: string;

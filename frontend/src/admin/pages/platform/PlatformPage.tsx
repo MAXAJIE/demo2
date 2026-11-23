@@ -4,8 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, LogOut, RefreshCw, ShieldAlert } from "lucide-react";
 
-import { useTenant } from "../../app/tenant-context";
-import { BrandBlock } from "../../components/site/Logo";
+import { useTenant } from "../../../app/tenant-context";
+import { BrandBlock } from "../../../components/site/Logo";
 import {
   ApiError,
   adminLogout,
@@ -13,10 +13,10 @@ import {
   getAdminToken,
   platformOverview,
   setAdminToken,
-} from "../../lib/api";
-import { cn, text as pick } from "../../lib/utils";
-import type { PlatformTenant } from "../../types";
-import { AdminPageHeader } from "../admin/AdminLayout";
+} from "../../../lib/api";
+import { cn, text as pick } from "../../../lib/utils";
+import type { PlatformTenant } from "../../../types";
+import { AdminPageHeader } from "../AdminLayout";
 import { PlatformInvites } from "./PlatformInvites";
 import { PlatformMembers } from "./PlatformMembers";
 import { platformText, type PlatformCopyKey } from "./copy";
@@ -47,7 +47,7 @@ export function PlatformPage() {
   useEffect(() => {
     if (!token || session.isError) {
       setAdminToken(null);
-      navigate("/manage/login?next=/platform", { replace: true });
+      navigate("/login?next=/platform", { replace: true });
     }
   }, [navigate, session.isError, token]);
 
@@ -71,7 +71,7 @@ export function PlatformPage() {
     }
     setAdminToken(null);
     queryClient.clear();
-    navigate("/manage/login", { replace: true });
+    navigate("/login", { replace: true });
   };
 
   const brand = pick(bundle.site.brand_name, locale);
@@ -102,12 +102,12 @@ export function PlatformPage() {
 
       <header className="sticky top-0 z-30 border-b border-line bg-surface">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-8">
-          <Link to="/manage" className="min-w-0">
+          <Link to="/" className="min-w-0">
             <BrandBlock name={brand} location={t("title")} wrapName />
           </Link>
           <div className="flex shrink-0 items-center gap-2">
             <Link
-              to="/manage"
+              to="/"
               aria-label={t("backToWorkspace")}
               className="btn btn-outline !min-h-[2.25rem] !px-3 !text-xs"
             >
@@ -165,7 +165,7 @@ export function PlatformPage() {
                     )}
                     {t("signOut")}
                   </button>
-                  <Link to="/manage" className="btn btn-outline !min-h-[2.5rem] !text-xs">
+                  <Link to="/" className="btn btn-outline !min-h-[2.5rem] !text-xs">
                     <ArrowLeft size={14} aria-hidden="true" />
                     {t("backToWorkspace")}
                   </Link>

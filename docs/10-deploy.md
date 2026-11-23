@@ -117,3 +117,26 @@ repo. A SQLite file is no longer the source of truth.
   `0004_functions_write.sql`).
 - Payment proof upload: intentionally unsupported without a server; keep it as a
   WhatsApp step, or add an Edge Function with a private bucket and short TTL.
+
+## Backstage project (second Pages app)
+
+The backstage is built separately so every customer shares one console:
+
+```bash
+cd frontend
+npm run build:admin          # -> frontend/dist-admin (admin.html copied to index.html)
+```
+
+Create a second Pages project from the same repository:
+
+| Setting | Value |
+|---|---|
+| Build command | `npm ci && npm run build:admin` (root `frontend`) |
+| Output directory | `dist-admin` |
+| Domain | `admin.yourdomain.my` |
+| Environment | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_BACKSTAGE_URL` (itself), optional `VITE_ADMIN_TENANT` |
+| Robots | served with `noindex` in `admin.html`; do not add it to the site sitemap |
+
+Workspace: the console remembers `?workspace=<slug>` in localStorage; a single-tenant deployment can set `VITE_ADMIN_TENANT`. The site's footer links here via `VITE_BACKSTAGE_URL` at build time.
+
+The dev-only console is at `/platform` on the backstage host and has no nav entry unless the signed-in account is in `platform_admins`.

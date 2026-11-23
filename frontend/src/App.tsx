@@ -37,45 +37,15 @@ const LegalPage = lazy(() =>
 const NotFoundPage = lazy(() =>
   import("./pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
 );
-const AdminLayout = lazy(() =>
-  import("./pages/admin/AdminLayout").then((module) => ({ default: module.AdminLayout })),
-);
-const AdminLoginPage = lazy(() =>
-  import("./pages/admin/AdminLoginPage").then((module) => ({ default: module.AdminLoginPage })),
-);
-const AdminOverviewPage = lazy(() =>
-  import("./pages/admin/AdminOverviewPage").then((module) => ({
-    default: module.AdminOverviewPage,
-  })),
-);
-const AdminBookingsPage = lazy(() =>
-  import("./pages/admin/AdminBookingsPage").then((module) => ({
-    default: module.AdminBookingsPage,
-  })),
-);
-const AdminLeadsPage = lazy(() =>
-  import("./pages/admin/AdminLeadsPage").then((module) => ({ default: module.AdminLeadsPage })),
-);
-const AdminServicesPage = lazy(() =>
-  import("./pages/admin/AdminServicesPage").then((module) => ({
-    default: module.AdminServicesPage,
-  })),
-);
-const AdminSettingsPage = lazy(() =>
-  import("./pages/admin/AdminSettingsPage").then((module) => ({
-    default: module.AdminSettingsPage,
-  })),
-);
-const PlatformPage = lazy(() =>
-  import("./pages/platform/PlatformPage").then((module) => ({
-    default: module.PlatformPage,
-  })),
-);
 
 function RouteFallback() {
   return <SiteSkeleton />;
 }
 
+/**
+ * Tenant-facing site only. The backstage is a separate app (src/admin, served
+ * on its own host); the footer links to it.
+ */
 export function App() {
   return (
     <Suspense fallback={<RouteFallback />}>
@@ -94,17 +64,6 @@ export function App() {
           <Route path="terms" element={<LegalPage kind="terms" />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
-
-        <Route path="manage/login" element={<AdminLoginPage />} />
-        <Route path="manage" element={<AdminLayout />}>
-          <Route index element={<AdminOverviewPage />} />
-          <Route path="bookings" element={<AdminBookingsPage />} />
-          <Route path="leads" element={<AdminLeadsPage />} />
-          <Route path="services" element={<AdminServicesPage />} />
-          <Route path="settings" element={<AdminSettingsPage />} />
-        </Route>
-
-        <Route path="platform" element={<PlatformPage />} />
       </Routes>
     </Suspense>
   );

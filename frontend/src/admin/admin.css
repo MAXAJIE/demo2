@@ -1,0 +1,48 @@
+/*
+ * Premium backstage theme: deep ink surfaces with a gold accent, scoped to the
+ * admin app so the tenant sites keep their light palette. Every Tailwind colour
+ * (page/surface/ink/muted/brand/accent/line) reads these variables.
+ */
+.backstage {
+  --bg: #0b1220;
+  --surface: #111a2b;
+  --surface-2: #16213a;
+  --text: #e9eef7;
+  --text-muted: #93a1b8;
+  --primary: #0f1729;
+  --on-primary: #e9eef7;
+  --accent: #c9a227;
+  --accent-on: #1a1405;
+  --accent-ink: #e4c766;
+  --border: #22304a;
+  --ring: #c9a227;
+  --radius-card: 18px;
+  --radius-control: 12px;
+  background: var(--bg);
+  color: var(--text);
+  color-scheme: dark;
+}
+
+.backstage body,
+body:has(.backstage) {
+  background: #0b1220;
+}
+
+/* Focus mode: hovering the rail dims and blurs the work area behind it */
+.backstage-focus {
+  filter: blur(2.5px) saturate(0.85);
+  opacity: 0.55;
+  transform: scale(0.997);
+  transition:
+    filter 220ms ease,
+    opacity 220ms ease,
+    transform 220ms ease;
+  pointer-events: none;
+}
+
+.backstage-main {
+  transition:
+    filter 220ms ease,
+    opacity 220ms ease,
+    transform 220ms ease;
+}

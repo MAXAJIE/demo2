@@ -142,23 +142,24 @@ describe("local gateway bookings", () => {
     expect(cancelled.booking.status).toBe("cancelled");
   });
 
-  it("releases a pending hold that was never sent on WhatsApp after 10 minutes", async () => {
+  it("auto-confirms a booking and keeps the slot for as long as it is confirmed", async () => {
     const gateway = createLocalGateway();
     const availability = await gateway.fetchAvailability("scaling-polishing-checkup", 14);
     const slot = firstOpenSlot(availability.days);
-    await gateway.createBooking({
+    const created = await gateway.createBooking({
       offering_slug: "scaling-polishing-checkup",
       starts_at: slot.starts_at,
-      customer_name: "Hold Test",
+      customer_name: "Auto Confirm",
       customer_phone: "0123456789",
       locale: "en",
       consent: true,
     });
+    expect(created.booking.status).toBe("confirmed");
 
     vi.setSystemTime(new Date(NOW.getTime() + 11 * 60_000));
     const later = await gateway.fetchAvailability("scaling-polishing-checkup", 14);
     const times = later.days.flatMap((day) => day.slots.map((s) => s.starts_at));
-    expect(times).toContain(slot.starts_at);
+    expect(times).not.toContain(slot.starts_at);
   });
 });
 
@@ -200,15 +201,16 @@ describe("local gateway leads and admin", () => {
       consent: true,
     });
     const overview = await gateway.adminOverview();
-    expect(overview.counts.pending_bookings).toBe(1);
+    // Auto-confirm: nothing is pending any more
+    expect(overview.counts.pending_bookings).toBe(0);
     expect(overview.upcoming).toHaveLength(1);
     expect(overview.upcoming[0].ref).toMatch(/^[A-Z]{3}-/);
-    const list = await gateway.adminBookings("pending");
+    const list = await gateway.adminBookings("confirmed");
     expect(list.bookings).toHaveLength(1);
     const updated = await gateway.adminUpdateBooking(list.bookings[0].id, {
-      status: "confirmed",
+      status: "declined",
     });
-    expect(updated.booking.status).toBe("confirmed");
+    expect(updated.booking.status).toBe("declined");
   });
 
   it("exposes settings with all three locales and one theme preset", async () => {
@@ -257,5 +259,56 @@ describe("local gateway platform access", () => {
     await expect(
       gateway.adminCreateInvite({ email: "x@y.my", role: "staff" }),
     ).rejects.toMatchObject({ status: 401 });
+  });
+});
+
+describe("local gateway front desk", () => {
+  it("books a caller and the day schedule shows it as booked", async () => {
+    const gateway = createLocalGateway();
+    await gateway.adminLogin("owner@demo.local", "demo1234");
+    const availability = await gateway.fetchAvailability("scaling-polishing-checkup", 14);
+    const day = availability.days.find((item) => item.slots.length > 0);
+    expect(day).toBeTruthy();
+    const slot = day?.slots[0];
+    if (!day || !slot) throw new Error("no slot");
+
+    const created = await gateway.adminCreateBooking({
+      offering_slug: "scaling-polishing-checkup",
+      starts_at: slot.starts_at,
+      customer_name: "Walk In",
+      customer_phone: "0121112222",
+      locale: "en",
+    });
+    expect(created.booking.status).toBe("confirmed");
+
+    const schedule = await gateway.daySchedule(day.date);
+    expect(schedule.booked.some((item) => item.ref === created.booking.ref)).toBe(true);
+    expect(schedule.free.some((item) => item.time === slot.time)).toBe(false);
+    expect(schedule.timezone).toBe("Asia/Kuala_Lumpur");
+  });
+
+  it("refuses a second booking on the same slot", async () => {
+    const gateway = createLocalGateway();
+    await gateway.adminLogin("owner@demo.local", "demo1234");
+    const availability = await gateway.fetchAvailability("scaling-polishing-checkup", 14);
+    const slot = firstOpenSlot(availability.days);
+    const input = {
+      offering_slug: "scaling-polishing-checkup",
+      starts_at: slot.starts_at,
+      customer_name: "First",
+      customer_phone: "0121112222",
+      locale: "en",
+    };
+    await gateway.adminCreateBooking(input);
+    await expect(
+      gateway.adminCreateBooking({ ...input, customer_name: "Second" }),
+    ).rejects.toMatchObject({ code: "slot_unavailable" });
+  });
+
+  it("reports image upload as unsupported without Supabase Storage", async () => {
+    const gateway = createLocalGateway();
+    await expect(
+      gateway.uploadServiceImage(new File(["x"], "cover.jpg"), "cover"),
+    ).rejects.toMatchObject({ status: 501 });
   });
 });

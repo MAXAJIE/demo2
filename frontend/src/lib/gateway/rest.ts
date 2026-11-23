@@ -10,6 +10,7 @@ import type {
   AvailabilityResponse,
   BookingResponse,
   BookingStatusResponse,
+  DaySchedule,
   LeadResponse,
   Offering,
   PlatformOverview,
@@ -239,5 +240,25 @@ export const restGateway: DataGateway = {
 
   adminListMembers(): Promise<{ members: AdminMember[] }> {
     return platformUnsupported("Members");
+  },
+
+  adminCreateBooking(): Promise<BookingResponse> {
+    return platformUnsupported("Front-desk booking");
+  },
+
+  daySchedule(): Promise<DaySchedule> {
+    return platformUnsupported("The day schedule");
+  },
+
+  uploadServiceImage(): Promise<{ url: string }> {
+    return platformUnsupported("Image upload");
+  },
+
+  subscribeBookings(): () => void {
+    return () => undefined;
+  },
+
+  subscribeOfferings(): () => void {
+    return () => undefined;
   },
 };

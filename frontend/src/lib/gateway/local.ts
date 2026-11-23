@@ -12,6 +12,7 @@
 import seedJson from "../../content/setapak.bundle.json";
 import type {
   AdminBooking,
+  AdminBookingInput,
   AdminFaq,
   AdminInvite,
   AdminLead,
@@ -24,6 +25,8 @@ import type {
   BookingResponse,
   BookingStatus,
   BookingStatusResponse,
+  DaySchedule,
+  DayScheduleSlot,
   I18nText,
   LeadResponse,
   Offering,
@@ -442,7 +445,7 @@ export function createLocalGateway(): DataGateway {
     return result;
   };
 
-  return {
+  const api: DataGateway = {
     setActiveTenant(slug: string | null): void {
       activeTenant = slug;
     },
@@ -499,7 +502,7 @@ export function createLocalGateway(): DataGateway {
           offering_slug: offering.slug,
           starts_at: iso(startsMs),
           ends_at: iso(startsMs + duration * 60_000),
-          status: "pending",
+          status: "confirmed",
           customer_name: name,
           contact_masked: maskPhone(input.customer_phone),
           locale: ["en", "ms", "zh"].includes(input.locale) ? input.locale : "en",
@@ -754,6 +757,69 @@ export function createLocalGateway(): DataGateway {
       });
     },
 
+    async adminCreateBooking(input: AdminBookingInput): Promise<BookingResponse> {
+      // The front desk books for a caller: consent is recorded by staff.
+      return api.createBooking({
+        offering_slug: input.offering_slug,
+        starts_at: input.starts_at,
+        customer_name: input.customer_name,
+        customer_phone: input.customer_phone,
+        locale: input.locale,
+        consent: true,
+      });
+    },
+
+    async daySchedule(date: string): Promise<DaySchedule> {
+      return withState((state) => {
+        releaseHolds(state, Date.now());
+        const dayMs = Date.parse(`${date}T00:00:00+08:00`);
+        const parts = klNowParts(dayMs);
+        const weekday = new Date(Date.UTC(parts.y, parts.m, parts.d)).getUTCDay();
+        const schedule = scheduleFor(weekday);
+        const booked = activeBookings(state)
+          .filter((item) => {
+            const at = Date.parse(item.starts_at);
+            return at >= dayMs && at < dayMs + 86_400_000;
+          })
+          .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))
+          .map((item) => ({
+            time: klTimeLabel(Date.parse(item.starts_at)),
+            starts_at: item.starts_at,
+            ends_at: item.ends_at,
+            ref: item.ref,
+            name: item.customer_name,
+            status: item.status,
+            service: offeringBySlug(item.offering_slug)?.title?.en ?? item.offering_slug,
+          }));
+        const free: DayScheduleSlot[] = [];
+        if (schedule && !schedule.closed && schedule.start) {
+          const step = 45;
+          const close = hhmmToMinutes(closesAt());
+          for (let cursor = hhmmToMinutes(schedule.start); cursor <= close - step; cursor += step) {
+            const startMs = dayMs + cursor * 60_000;
+            const endMs = startMs + step * 60_000;
+            const busy = activeBookings(state).some(
+              (item) => startMs < Date.parse(item.ends_at) && endMs > Date.parse(item.starts_at),
+            );
+            if (!busy) free.push({ time: minutesToHHMM(cursor), starts_at: iso(startMs) });
+          }
+        }
+        return { date, timezone: seed.site.timezone, booked, free };
+      });
+    },
+
+    async uploadServiceImage(): Promise<{ url: string }> {
+      throw new ApiError("Image upload needs Supabase Storage", 501, "storage_unconfigured");
+    },
+
+    subscribeBookings(): () => void {
+      return () => undefined;
+    },
+
+    subscribeOfferings(): () => void {
+      return () => undefined;
+    },
+
     async platformOverview(): Promise<PlatformOverview> {
       return withState((state) => {
         requireSession(state);
@@ -851,4 +917,6 @@ export function createLocalGateway(): DataGateway {
       });
     },
   };
+
+  return api;
 }

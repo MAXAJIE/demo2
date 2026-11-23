@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { useTenant } from "../../app/tenant-context";
-import { adminListMembers } from "../../lib/api";
-import { cn, text as pick } from "../../lib/utils";
-import type { PlatformTenant } from "../../types";
+import { useTenant } from "../../../app/tenant-context";
+import { adminListMembers } from "../../../lib/api";
+import { cn, text as pick } from "../../../lib/utils";
+import type { PlatformTenant } from "../../../types";
 import { platformText, type PlatformCopyKey } from "./copy";
 
 export function PlatformMembers({ tenants }: { tenants: PlatformTenant[] }) {
