@@ -1,0 +1,14 @@
+{
+  "name": "coresite",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "CoreSite Malaysia multi-tenant site engine (Supabase SQL layer)",
+  "scripts": {
+    "test:sql": "node tests/sql/run.mjs",
+    "seed:sql": "node scripts/sql/dump-seed.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.13"
+  }
+}
