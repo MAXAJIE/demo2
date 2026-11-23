@@ -29,3 +29,4 @@ Thumbs.db
 frontend/.wrangler/
 
 frontend/dist-local/
+frontend/dist-supabase/
