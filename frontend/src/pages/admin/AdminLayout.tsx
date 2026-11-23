@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Settings,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { Helmet } from "react-helmet-async";
@@ -20,9 +21,11 @@ import {
   adminLogout,
   adminSession,
   getAdminToken,
+  platformOverview,
   setAdminToken,
 } from "../../lib/api";
 import { cn } from "../../lib/utils";
+import type { Locale } from "../../types";
 
 const nav = [
   { to: "/manage", end: true, key: "admin.overview", icon: LayoutDashboard },
@@ -31,6 +34,12 @@ const nav = [
   { to: "/manage/services", key: "admin.services", icon: Sparkles },
   { to: "/manage/settings", key: "admin.settings", icon: Settings },
 ] as const;
+
+const platformConsoleLabel: Record<Locale, string> = {
+  en: "Platform console",
+  ms: "Konsol platform",
+  zh: "平台控制台",
+};
 
 export function AdminLayout() {
   const { bundle, locale } = useTenant();
@@ -47,6 +56,16 @@ export function AdminLayout() {
     enabled: Boolean(token),
     retry: false,
   });
+
+  // Tier 2 access is decided by the platform RPC, not by the token alone: the
+  // link only appears when the overview actually resolves.
+  const platform = useQuery({
+    queryKey: ["platform-overview"],
+    queryFn: platformOverview,
+    enabled: Boolean(token) && session.isSuccess,
+    retry: false,
+  });
+  const showPlatform = platform.isSuccess;
 
   useEffect(() => {
     if (session.isError) {
@@ -112,6 +131,17 @@ export function AdminLayout() {
               </NavLink>
             );
           })}
+          {showPlatform ? (
+            <div className="mt-1 border-t border-white/10 pt-2">
+              <Link
+                to="/platform"
+                className="flex items-center gap-3 rounded-control px-3.5 py-2.5 text-sm font-medium text-on-brand/60 transition hover:bg-white/5 hover:text-on-brand"
+              >
+                <ShieldCheck size={17} aria-hidden="true" />
+                {platformConsoleLabel[locale]}
+              </Link>
+            </div>
+          ) : null}
         </nav>
         <div className="space-y-1 border-t border-white/10 p-3">
           <Link
@@ -170,6 +200,14 @@ export function AdminLayout() {
                 {t(item.key)}
               </NavLink>
             ))}
+            {showPlatform ? (
+              <Link
+                to="/platform"
+                className="shrink-0 rounded-full bg-surface px-3.5 py-2 text-xs font-medium text-muted"
+              >
+                {platformConsoleLabel[locale]}
+              </Link>
+            ) : null}
           </nav>
         </header>
 

@@ -66,6 +66,11 @@ const AdminSettingsPage = lazy(() =>
     default: module.AdminSettingsPage,
   })),
 );
+const PlatformPage = lazy(() =>
+  import("./pages/platform/PlatformPage").then((module) => ({
+    default: module.PlatformPage,
+  })),
+);
 
 function RouteFallback() {
   return <SiteSkeleton />;
@@ -98,6 +103,8 @@ export function App() {
           <Route path="services" element={<AdminServicesPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
+
+        <Route path="platform" element={<PlatformPage />} />
       </Routes>
     </Suspense>
   );

@@ -536,3 +536,30 @@ describe("supabase gateway unsupported operations", () => {
     expect(client.rpcCalls).toHaveLength(0);
   });
 });
+
+describe("platform-only admins", () => {
+  it("signs in without a tenant membership and reports the platform role", async () => {
+    const client = new FakeClient();
+    client.auth.session = session();
+    client.tables.platform_admins = [{ user_id: USER.id }];
+
+    const gateway = createSupabaseGateway(client);
+    const login = await gateway.adminLogin("owner@example.com", "secret");
+    expect(login.staff.role).toBe("platform");
+
+    const current = await gateway.adminSession();
+    expect(current.staff.role).toBe("platform");
+    expect(client.auth.signOutCalls).toBe(0);
+  });
+
+  it("still refuses an account with neither membership nor platform access", async () => {
+    const client = new FakeClient();
+    client.auth.session = session();
+
+    const gateway = createSupabaseGateway(client);
+    await expect(gateway.adminLogin("owner@example.com", "secret")).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    expect(client.auth.signOutCalls).toBe(1);
+  });
+});

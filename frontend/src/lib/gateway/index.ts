@@ -14,9 +14,22 @@ import type { DataGateway } from "./types";
  * supabase-js reaches a visitor of another mode.
  */
 const requested = (import.meta.env.VITE_DATA_SOURCE ?? "").toLowerCase();
+const hasSupabase = Boolean(
+  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY,
+);
 
+/**
+ * Explicit VITE_DATA_SOURCE wins. Otherwise a configured Supabase project is the
+ * production path, and without one the app runs the bundled demo — no backend
+ * and no configuration. "rest" stays available for working on the old FastAPI
+ * server.
+ */
 export const dataSource: "rest" | "local" | "supabase" =
-  requested === "local" ? "local" : requested === "supabase" ? "supabase" : "rest";
+  requested === "rest" || requested === "local" || requested === "supabase"
+    ? requested
+    : hasSupabase
+      ? "supabase"
+      : "local";
 
 let adapter: DataGateway = restGateway;
 let pending: Promise<void> | null = null;

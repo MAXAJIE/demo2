@@ -633,6 +633,16 @@ export function createSupabaseGateway(client: SupabaseLike): DataGateway {
     return membership;
   }
 
+  /** Tier 2 access does not need a tenant membership (platform_admins only). */
+  async function isPlatformAdmin(userId: string): Promise<boolean> {
+    try {
+      const rows = await selectRows("platform_admins", "user_id", { user_id: userId }, { limit: 1 });
+      return rows.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
   async function requireMembership(session: SupabaseSession): Promise<TenantMembership> {
     const membership = await loadMembership(session.user.id);
     if (!membership) {
@@ -812,14 +822,18 @@ export function createSupabaseGateway(client: SupabaseLike): DataGateway {
       }
       membershipCache.delete(user.id);
       const membership = await loadMembership(user.id);
-      if (!membership) {
+      if (!membership && !(await isPlatformAdmin(user.id))) {
         await client.auth.signOut();
         throw new ApiError("No workspace access", 403, "forbidden");
       }
       return {
         token: session.access_token,
         expires_at: expiresAtIso(session),
-        staff: { id: user.id, name: displayName(user), role: membership.role },
+        staff: {
+          id: user.id,
+          name: displayName(user),
+          role: membership ? membership.role : "platform",
+        },
       };
     },
 
@@ -834,12 +848,15 @@ export function createSupabaseGateway(client: SupabaseLike): DataGateway {
 
     async adminSession(): Promise<AdminSessionSummary> {
       const session = await requireSession();
-      const membership = await requireMembership(session);
+      const membership = await loadMembership(session.user.id);
+      if (!membership && !(await isPlatformAdmin(session.user.id))) {
+        throw new ApiError("Forbidden", 403, "forbidden");
+      }
       return {
         staff: {
           id: session.user.id,
           name: displayName(session.user),
-          role: membership.role,
+          role: membership ? membership.role : "platform",
         },
         expires_at: expiresAtIso(session),
       };

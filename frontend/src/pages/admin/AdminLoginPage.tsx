@@ -1,33 +1,73 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { AlertCircle, ArrowRight, Loader2, LockKeyhole } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useTenant } from "../../app/tenant-context";
 import { BrandBlock } from "../../components/site/Logo";
-import { adminLogin, getAdminToken, setAdminToken } from "../../lib/api";
+import { adminClaimInvite, adminLogin, getAdminToken, setAdminToken } from "../../lib/api";
 import { displayClock, text } from "../../lib/utils";
+import type { Locale } from "../../types";
+
+const inviteCopy = {
+  hint: {
+    en: "You were invited. Sign in with the email address that received the invitation.",
+    ms: "Anda telah dijemput. Log masuk dengan alamat e-mel yang menerima jemputan itu.",
+    zh: "你收到邀请。请使用收到邀请的电邮地址登录。",
+  },
+  invalid: {
+    en: "This invitation is not valid or has expired. Ask the owner for a new link.",
+    ms: "Jemputan ini tidak sah atau telah tamat tempoh. Minta pautan baharu daripada pemilik.",
+    zh: "此邀请无效或已过期。请向负责人索取新的链接。",
+  },
+  continue: {
+    en: "Continue to the front desk",
+    ms: "Teruskan ke kaunter hadapan",
+    zh: "前往前台",
+  },
+} satisfies Record<string, Record<Locale, string>>;
+
+/** Only same-origin paths are honoured, so `next` cannot become an open redirect. */
+function safeNext(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/manage";
+  if (value.startsWith("/manage/login")) return "/manage";
+  return value;
+}
 
 export function AdminLoginPage() {
   const { bundle, locale } = useTenant();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = (searchParams.get("invite") ?? "").trim();
+  const destination = safeNext(searchParams.get("next"));
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [inviteError, setInviteError] = useState("");
 
   const mutation = useMutation({
     mutationFn: () => adminLogin(identifier, password),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setAdminToken(data.token);
-      navigate("/manage", { replace: true });
+      if (inviteToken) {
+        try {
+          await adminClaimInvite(inviteToken);
+        } catch {
+          // Signed in, but the invite itself is unusable: keep the user on the
+          // page so the reason is visible, and let them continue manually.
+          setInviteError(inviteCopy.invalid[locale]);
+          return;
+        }
+      }
+      navigate(destination, { replace: true });
     },
     onError: () => setError(t("admin.invalid")),
   });
 
-  if (getAdminToken()) return <Navigate to="/manage" replace />;
+  if (getAdminToken() && !inviteError) return <Navigate to={destination} replace />;
 
   const brand = text(bundle.site.brand_name, locale);
   const contact = bundle.site.contact;
@@ -80,6 +120,27 @@ export function AdminLoginPage() {
         </div>
 
         <div className="p-8 md:p-10">
+          {inviteToken ? (
+            <div className="mb-4 rounded-control border border-line bg-page px-4 py-3 text-xs leading-relaxed text-muted">
+              {inviteCopy.hint[locale]}
+            </div>
+          ) : null}
+
+          {inviteError ? (
+            <div role="alert" className="mb-4 rounded-control p-3 text-xs badge-danger">
+              <div className="flex items-start gap-2">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                {inviteError}
+              </div>
+              <Link
+                to={destination}
+                className="mt-2 inline-flex font-semibold underline decoration-line underline-offset-4 hover:no-underline"
+              >
+                {inviteCopy.continue[locale]}
+              </Link>
+            </div>
+          ) : null}
+
           <form
             onSubmit={(event) => {
               event.preventDefault();
