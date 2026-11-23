@@ -14,6 +14,7 @@
  * Run: npm run test:sql
  */
 import { PGlite } from "@electric-sql/pglite";
+import { readFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -222,6 +223,7 @@ await check("masked contact columns cannot store a raw long number pattern", asy
 });
 
 console.log("\nPublic read RPCs:");
+await db.query(`delete from public.tenant_domains where hostname = 'localhost'`);
 await db.query(
   `insert into public.tenant_domains (hostname, tenant_id, is_primary)
    values ('localhost', $1, true)`,
@@ -402,7 +404,8 @@ await check("a platform admin sees every tenant", async () => {
     const result = await db.query("select id from public.tenants");
     return result.rows;
   });
-  assert(rows.length === 2, `saw ${rows.length} tenants`);
+  const ids = rows.map((row) => row.id);
+  assert(ids.includes(tenantId) && ids.includes(otherTenantId), `saw ${rows.length} tenants`);
 });
 
 await check("read-only staff cannot rewrite page content", async () => {
@@ -670,6 +673,35 @@ await rejects(
   /forbidden/,
 );
 
+
+console.log("\nSeed data:");
+const seeded = await asUser(null, "anon", async () => {
+  const result = await db.query("select public.site_bundle('setapak-dental-jb.localhost', null) as payload");
+  return result.rows[0].payload;
+});
+
+await check("the seeded demo tenant matches the public bundle snapshot", async () => {
+  const snapshot = JSON.parse(readFileSync("content/setapak.bundle.json", "utf8"));
+  assert(seeded.tenant.slug === snapshot.tenant.slug, seeded.tenant.slug);
+  assert(seeded.offerings.length === snapshot.offerings.length, `offerings ${seeded.offerings.length}`);
+  assert(Object.keys(seeded.content).sort().join() === Object.keys(snapshot.content).sort().join(), "content pages differ");
+  assert(seeded.content.home.hero.headline.en === snapshot.content.home.hero.headline.en, "headline differs");
+  assert(JSON.stringify(seeded.site.locales) === JSON.stringify(["en", "ms", "zh"]), "locales");
+});
+
+await check("seeded slots for the 60-minute treatment end by closing", async () => {
+  const result = await asUser(null, "anon", async () =>
+    (await db.query("select public.availability('root-canal-crown-restoration', 21, 'setapak-dental-jb.localhost') as payload")).rows[0].payload,
+  );
+  const open = result.days.filter((day) => day.slots.length > 0);
+  assert(open.length > 0, "expected open days");
+  for (const day of open) {
+    const last = day.slots[day.slots.length - 1].time;
+    assert(last <= "22:00", `${day.date} last start ${last}`);
+  }
+});
+
 console.log(`\n${checks - failures}/${checks} checks passed`);
+
 await db.close();
 if (failures > 0) process.exit(1);
