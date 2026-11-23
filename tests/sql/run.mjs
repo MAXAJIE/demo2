@@ -681,7 +681,7 @@ const seeded = await asUser(null, "anon", async () => {
 });
 
 await check("the seeded demo tenant matches the public bundle snapshot", async () => {
-  const snapshot = JSON.parse(readFileSync("content/setapak.bundle.json", "utf8"));
+  const snapshot = JSON.parse(readFileSync("frontend/src/content/setapak.bundle.json", "utf8"));
   assert(seeded.tenant.slug === snapshot.tenant.slug, seeded.tenant.slug);
   assert(seeded.offerings.length === snapshot.offerings.length, `offerings ${seeded.offerings.length}`);
   assert(Object.keys(seeded.content).sort().join() === Object.keys(snapshot.content).sort().join(), "content pages differ");

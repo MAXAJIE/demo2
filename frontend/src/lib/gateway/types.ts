@@ -1,0 +1,74 @@
+import type {
+  AdminBooking,
+  AdminFaq,
+  AdminLead,
+  AdminOverview,
+  AdminSessionResponse,
+  AdminSettings,
+  AvailabilityResponse,
+  BookingResponse,
+  BookingStatusResponse,
+  LeadResponse,
+  Offering,
+  SiteBundle,
+} from "../../types";
+
+export interface CreateBookingInput {
+  offering_slug: string;
+  starts_at: string;
+  customer_name: string;
+  customer_phone: string;
+  locale: string;
+  consent: boolean;
+  website?: string;
+}
+
+export interface CreateLeadInput {
+  customer_name: string;
+  customer_phone: string;
+  message: string;
+  offering_slug?: string;
+  locale: string;
+  consent: boolean;
+  website?: string;
+}
+
+export interface AdminSessionSummary {
+  staff: { id: string; name: string; role: string };
+  expires_at: string;
+}
+
+/**
+ * Every data operation the UI needs. `rest` talks to the FastAPI backend (still
+ * the default while the Supabase path is being verified); `local` serves the
+ * bundled seed with localStorage so the app can run with no backend at all.
+ */
+export interface DataGateway {
+  setActiveTenant(slug: string | null): void;
+  fetchSite(tenant?: string | null): Promise<SiteBundle>;
+  fetchAvailability(offering: string | null, days?: number): Promise<AvailabilityResponse>;
+  createBooking(input: CreateBookingInput): Promise<BookingResponse>;
+  fetchBooking(ref: string, token: string): Promise<BookingStatusResponse>;
+  cancelBooking(ref: string, token: string): Promise<BookingStatusResponse>;
+  uploadProof(ref: string, token: string, file: File): Promise<{ ok: boolean }>;
+  createLead(input: CreateLeadInput): Promise<LeadResponse>;
+  adminLogin(identifier: string, password: string): Promise<AdminSessionResponse>;
+  adminLogout(): Promise<{ ok: boolean }>;
+  adminSession(): Promise<AdminSessionSummary>;
+  adminOverview(): Promise<AdminOverview>;
+  adminBookings(status?: string): Promise<{ bookings: AdminBooking[] }>;
+  adminUpdateBooking(
+    id: string,
+    body: { status?: string; payment_verified?: boolean },
+  ): Promise<{ booking: AdminBooking }>;
+  adminLeads(status?: string): Promise<{ leads: AdminLead[] }>;
+  adminUpdateLead(
+    id: string,
+    body: { status?: string; internal_notes?: string },
+  ): Promise<{ lead: AdminLead }>;
+  adminOfferings(): Promise<{ offerings: Offering[] }>;
+  adminUpdateOffering(id: string, body: Record<string, unknown>): Promise<{ offering: Offering }>;
+  adminSettings(): Promise<AdminSettings>;
+  adminUpdateSettings(body: Record<string, unknown>): Promise<AdminSettings>;
+  adminFaq(): Promise<{ faq: AdminFaq[] }>;
+}

@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const siteUrl = process.env.SITE_URL ?? "http://127.0.0.1:8011/api/v1/site";
-const target = resolve(here, "..", "content", "setapak.bundle.json");
+const target = resolve(here, "..", "frontend", "src", "content", "setapak.bundle.json");
 
 const response = await fetch(siteUrl, { headers: { accept: "application/json" } });
 if (!response.ok) {
@@ -25,10 +25,16 @@ if (!response.ok) {
 }
 const bundle = await response.json();
 
+// Owner decision (2026-11-23): all three locales are offered. The backend that
+// serves this snapshot may still be configured for two, so normalise here — the
+// SQL seed applies the same rule.
+
 if (!bundle?.tenant?.slug || !bundle?.site) {
   console.error("Response does not look like a site bundle (missing tenant/site)");
   process.exit(1);
 }
+
+bundle.site = { ...bundle.site, locales: ["en", "ms", "zh"] };
 
 await mkdir(dirname(target), { recursive: true });
 await writeFile(target, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
