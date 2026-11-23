@@ -674,6 +674,73 @@ await rejects(
 );
 
 
+console.log("\nPlatform console:");
+const platformInvite = await asUser(userAdmin, "authenticated", async () => {
+  const result = await db.query(
+    "select public.admin_create_invite('boss2@platform.my', 'platform', null) as payload",
+  );
+  return result.rows[0].payload;
+});
+
+await check("a platform admin can invite another platform admin", async () => {
+  assert(platformInvite.token.length === 64, "token should be 64 hex chars");
+  assert(platformInvite.tenant_id === null, "platform invites have no tenant");
+  assert(platformInvite.role === "platform");
+});
+
+await check("the invited platform admin can claim it", async () => {
+  const bossId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+  await db.query("insert into auth.users (id, email) values ($1, 'boss2@platform.my')", [bossId]);
+  const claimed = await asUser(bossId, "authenticated", async () => {
+    const result = await db.query("select public.claim_admin_invite($1) as payload", [
+      platformInvite.token,
+    ]);
+    return result.rows[0].payload;
+  });
+  assert(claimed.ok === true && claimed.role === "platform", JSON.stringify(claimed));
+  const row = await db.query("select 1 from public.platform_admins where user_id = $1", [bossId]);
+  assert(row.rows.length === 1, "expected a platform_admins row");
+});
+
+await rejects(
+  "read-only staff cannot invite anyone",
+  () =>
+    asUser(userA, "authenticated", () =>
+      db.query("select public.admin_create_invite('x@y.my', 'staff', $1)", [tenantId]),
+    ),
+  /forbidden/,
+);
+
+await check("a tenant owner can invite their own staff", async () => {
+  const invite = await asUser(userB, "authenticated", async () => {
+    const result = await db.query(
+      "select public.admin_create_invite('newstaff2@example.my', 'staff') as payload",
+    );
+    return result.rows[0].payload;
+  });
+  assert(invite.tenant_id === otherTenantId, String(invite.tenant_id));
+  assert(invite.role === "staff");
+});
+
+await check("platform_overview lists tenants with counts", async () => {
+  const overview = await asUser(userAdmin, "authenticated", async () => {
+    const result = await db.query("select public.platform_overview() as payload");
+    return result.rows[0].payload;
+  });
+  const demo = overview.tenants.find((tenant) => tenant.slug === "setapak-dental-jb");
+  assert(demo, "demo tenant missing from the platform overview");
+  assert(demo.published_offerings === 3, "offerings=" + demo.published_offerings);
+});
+
+await rejects(
+  "platform_overview is refused to a normal member",
+  () =>
+    asUser(userA, "authenticated", () =>
+      db.query("select public.platform_overview()"),
+    ),
+  /forbidden/,
+);
+
 console.log("\nSeed data:");
 const seeded = await asUser(null, "anon", async () => {
   const result = await db.query("select public.site_bundle('setapak-dental-jb.localhost', null) as payload");
