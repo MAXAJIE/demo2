@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..");
-const dbPath = resolve(root, "backend", "data", "coresite.db");
+const dbPath = resolve(root, "archive", "backend", "data", "coresite.db");
 const bundlePath = resolve(root, "frontend", "src", "content", "setapak.bundle.json");
 const outPath = resolve(root, "supabase", "migrations", "0005_seed.sql");
 
