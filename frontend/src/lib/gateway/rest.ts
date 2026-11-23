@@ -1,7 +1,9 @@
 import type {
   AdminBooking,
   AdminFaq,
+  AdminInvite,
   AdminLead,
+  AdminMember,
   AdminOverview,
   AdminSessionResponse,
   AdminSettings,
@@ -10,6 +12,7 @@ import type {
   BookingStatusResponse,
   LeadResponse,
   Offering,
+  PlatformOverview,
   SiteBundle,
 } from "../../types";
 import { ApiError } from "../errors";
@@ -77,6 +80,16 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   return payload as T;
+}
+
+function platformUnsupported<T>(what: string): Promise<T> {
+  return Promise.reject(
+    new ApiError(
+      `${what} is only available on the Supabase data source`,
+      501,
+      "platform_unavailable",
+    ),
+  );
 }
 
 export const restGateway: DataGateway = {
@@ -206,5 +219,25 @@ export const restGateway: DataGateway = {
 
   adminFaq(): Promise<{ faq: AdminFaq[] }> {
     return request<{ faq: AdminFaq[] }>("/api/v1/admin/faq", { auth: true });
+  },
+
+  platformOverview(): Promise<PlatformOverview> {
+    return platformUnsupported("The platform console");
+  },
+
+  adminCreateInvite(): Promise<AdminInvite> {
+    return platformUnsupported("Invites");
+  },
+
+  adminListInvites(): Promise<{ invites: AdminInvite[] }> {
+    return platformUnsupported("Invites");
+  },
+
+  adminClaimInvite(): Promise<{ ok: boolean; tenant_id: string | null; role: string }> {
+    return platformUnsupported("Invites");
+  },
+
+  adminListMembers(): Promise<{ members: AdminMember[] }> {
+    return platformUnsupported("Members");
   },
 };

@@ -1,6 +1,8 @@
 import type {
   AdminBooking,
   AdminFaq,
+  AdminInvite,
+  AdminMember,
   AdminLead,
   AdminOverview,
   AdminSessionResponse,
@@ -10,6 +12,7 @@ import type {
   BookingStatusResponse,
   LeadResponse,
   Offering,
+  PlatformOverview,
   SiteBundle,
 } from "../types";
 import { gateway, setActiveTenant as setGatewayTenant } from "./gateway";
@@ -130,4 +133,32 @@ export async function adminUpdateSettings(body: Record<string, unknown>): Promis
 
 export async function adminFaq(): Promise<{ faq: AdminFaq[] }> {
   return (await gateway()).adminFaq();
+}
+
+export async function platformOverview(): Promise<PlatformOverview> {
+  return (await gateway()).platformOverview();
+}
+
+export async function adminCreateInvite(input: {
+  email: string;
+  role: string;
+  tenantId?: string | null;
+}) {
+  return (await gateway()).adminCreateInvite(input);
+}
+
+export async function adminListInvites(): Promise<{ invites: AdminInvite[] }> {
+  return (await gateway()).adminListInvites();
+}
+
+export async function adminClaimInvite(token: string): Promise<{
+  ok: boolean;
+  tenant_id: string | null;
+  role: string;
+}> {
+  return (await gateway()).adminClaimInvite(token);
+}
+
+export async function adminListMembers(tenantId: string): Promise<{ members: AdminMember[] }> {
+  return (await gateway()).adminListMembers(tenantId);
 }

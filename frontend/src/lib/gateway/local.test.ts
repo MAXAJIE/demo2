@@ -225,3 +225,37 @@ describe("local gateway leads and admin", () => {
     await expect(gateway.adminOverview()).rejects.toMatchObject({ status: 401 });
   });
 });
+
+describe("local gateway platform access", () => {
+  it("mints, lists and claims an invite exactly once", async () => {
+    const gateway = createLocalGateway();
+    await gateway.adminLogin("owner@demo.local", "demo1234");
+    const invite = await gateway.adminCreateInvite({ email: "new@clinic.my", role: "staff" });
+    expect(invite.token).toHaveLength(64);
+    const list = await gateway.adminListInvites();
+    expect(list.invites).toHaveLength(1);
+    await expect(gateway.adminClaimInvite(invite.token ?? "")).resolves.toMatchObject({
+      ok: true,
+      role: "staff",
+    });
+    await expect(gateway.adminClaimInvite(invite.token ?? "")).rejects.toMatchObject({
+      code: "invite_invalid",
+    });
+  });
+
+  it("reports the demo tenant on the platform overview", async () => {
+    const gateway = createLocalGateway();
+    await gateway.adminLogin("owner@demo.local", "demo1234");
+    const overview = await gateway.platformOverview();
+    expect(overview.tenants).toHaveLength(1);
+    expect(overview.tenants[0].slug).toBe("setapak-dental-jb");
+    expect(overview.tenants[0].published_offerings).toBe(3);
+  });
+
+  it("refuses invites without a session", async () => {
+    const gateway = createLocalGateway();
+    await expect(
+      gateway.adminCreateInvite({ email: "x@y.my", role: "staff" }),
+    ).rejects.toMatchObject({ status: 401 });
+  });
+});

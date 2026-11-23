@@ -15,6 +15,8 @@
 import type {
   AdminBooking,
   AdminFaq,
+  AdminInvite,
+  AdminMember,
   AdminLead,
   AdminOverview,
   AdminSessionResponse,
@@ -27,6 +29,8 @@ import type {
   LeadResponse,
   Locale,
   Offering,
+  PlatformOverview,
+  PlatformTenant,
   SiteBundle,
   SiteContact,
   SiteLabels,
@@ -701,6 +705,18 @@ export function createSupabaseGateway(client: SupabaseLike): DataGateway {
     return data as T;
   }
 
+  function mapInvite(row: Row): AdminInvite {
+    return {
+      id: asText(row.id),
+      email: asText(row.email),
+      role: asText(row.role),
+      tenant_id: typeof row.tenant_id === "string" ? row.tenant_id : null,
+      expires_at: asText(row.expires_at),
+      used_at: typeof row.used_at === "string" ? row.used_at : null,
+      created_at: typeof row.created_at === "string" ? row.created_at : undefined,
+    };
+  }
+
   async function readSettings(tenantId: string): Promise<Row> {
     const rows = await selectRows("site_settings", SETTINGS_COLUMNS, { tenant_id: tenantId }, { limit: 1 });
     const row = rows[0];
@@ -973,6 +989,61 @@ export function createSupabaseGateway(client: SupabaseLike): DataGateway {
         { order: { column: "sort", ascending: true } },
       );
       return { faq: rows.map(mapAdminFaq) };
+    },
+
+    async platformOverview(): Promise<PlatformOverview> {
+      const payload = await callRpc<{ tenants?: PlatformTenant[] }>("platform_overview", {});
+      return { tenants: Array.isArray(payload.tenants) ? payload.tenants : [] };
+    },
+
+    async adminCreateInvite(input: {
+      email: string;
+      role: string;
+      tenantId?: string | null;
+    }): Promise<AdminInvite> {
+      const payload = await callRpc<Row>("admin_create_invite", {
+        p_email: input.email,
+        p_role: input.role,
+        p_tenant: input.tenantId ?? null,
+      });
+      return mapInvite(payload);
+    },
+
+    async adminListInvites(): Promise<{ invites: AdminInvite[] }> {
+      // RLS: platform admins see every invite, tenant owners only their own rows.
+      const rows = await selectRows(
+        "admin_invites",
+        "id,email,role,tenant_id,expires_at,used_at,created_at",
+        {},
+        { order: { column: "created_at", ascending: false }, limit: 50 },
+      );
+      return { invites: rows.map(mapInvite) };
+    },
+
+    async adminClaimInvite(token: string): Promise<{
+      ok: boolean;
+      tenant_id: string | null;
+      role: string;
+    }> {
+      const payload = await callRpc<Row>("claim_admin_invite", { p_token: token });
+      return {
+        ok: payload.ok === true,
+        tenant_id: typeof payload.tenant_id === "string" ? payload.tenant_id : null,
+        role: asText(payload.role),
+      };
+    },
+
+    async adminListMembers(tenantId: string): Promise<{ members: AdminMember[] }> {
+      const rows = await selectRows("tenant_members", "user_id,role,active", {
+        tenant_id: tenantId,
+      });
+      return {
+        members: rows.map((row) => ({
+          user_id: asText(row.user_id),
+          role: asText(row.role),
+          active: row.active !== false,
+        })),
+      };
     },
   };
 }

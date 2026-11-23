@@ -1,7 +1,9 @@
 import type {
   AdminBooking,
   AdminFaq,
+  AdminInvite,
   AdminLead,
+  AdminMember,
   AdminOverview,
   AdminSessionResponse,
   AdminSettings,
@@ -10,6 +12,7 @@ import type {
   BookingStatusResponse,
   LeadResponse,
   Offering,
+  PlatformOverview,
   SiteBundle,
 } from "../../types";
 
@@ -71,4 +74,19 @@ export interface DataGateway {
   adminSettings(): Promise<AdminSettings>;
   adminUpdateSettings(body: Record<string, unknown>): Promise<AdminSettings>;
   adminFaq(): Promise<{ faq: AdminFaq[] }>;
+  /** Tier 2: every tenant with counts (platform admins only). */
+  platformOverview(): Promise<PlatformOverview>;
+  /** Mints a one-time invite token; returned once in the response. */
+  adminCreateInvite(input: {
+    email: string;
+    role: string;
+    tenantId?: string | null;
+  }): Promise<AdminInvite>;
+  adminListInvites(): Promise<{ invites: AdminInvite[] }>;
+  adminClaimInvite(token: string): Promise<{
+    ok: boolean;
+    tenant_id: string | null;
+    role: string;
+  }>;
+  adminListMembers(tenantId: string): Promise<{ members: AdminMember[] }>;
 }

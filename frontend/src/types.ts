@@ -346,6 +346,39 @@ export interface AdminSettings {
   forwarding_configured: boolean;
 }
 
+export interface PlatformTenant {
+  id: string;
+  slug: string;
+  status: string;
+  plan: string;
+  brand_name: I18nText | null;
+  pending_bookings: number;
+  new_leads: number;
+  published_offerings: number;
+}
+
+export interface PlatformOverview {
+  tenants: PlatformTenant[];
+}
+
+export interface AdminInvite {
+  id: string;
+  email: string;
+  role: string;
+  tenant_id: string | null;
+  /** Present once, on creation only. */
+  token?: string;
+  expires_at: string;
+  used_at?: string | null;
+  created_at?: string;
+}
+
+export interface AdminMember {
+  user_id: string;
+  role: string;
+  active: boolean;
+}
+
 export interface AdminFaq {
   id: string;
   question: I18nText;

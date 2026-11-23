@@ -13,7 +13,9 @@ import seedJson from "../../content/setapak.bundle.json";
 import type {
   AdminBooking,
   AdminFaq,
+  AdminInvite,
   AdminLead,
+  AdminMember,
   AdminOverview,
   AdminSessionResponse,
   AdminSettings,
@@ -25,6 +27,7 @@ import type {
   I18nText,
   LeadResponse,
   Offering,
+  PlatformOverview,
   ScheduleDay,
   SiteBundle,
   SiteContact,
@@ -77,9 +80,21 @@ interface LocalLead {
   created_at: string;
 }
 
+interface LocalInvite {
+  id: string;
+  email: string;
+  role: string;
+  tenant_id: string | null;
+  token: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
+
 interface LocalState {
   bookings: LocalBooking[];
   leads: LocalLead[];
+  invites: LocalInvite[];
   offeringOverrides: Record<string, Partial<Offering>>;
   settingsOverride: Record<string, unknown> | null;
   session: { staff: { id: string; name: string; role: string }; expires_at: string } | null;
@@ -88,6 +103,7 @@ interface LocalState {
 const emptyState = (): LocalState => ({
   bookings: [],
   leads: [],
+  invites: [],
   offeringOverrides: {},
   settingsOverride: null,
   session: null,
@@ -735,6 +751,103 @@ export function createLocalGateway(): DataGateway {
             sort: index,
           })),
         };
+      });
+    },
+
+    async platformOverview(): Promise<PlatformOverview> {
+      return withState((state) => {
+        requireSession(state);
+        return {
+          tenants: [
+            {
+              id: seed.tenant.id,
+              slug: seed.tenant.slug,
+              status: seed.tenant.status,
+              plan: "starter",
+              brand_name: seed.site.brand_name,
+              pending_bookings: state.bookings.filter((b) => b.status === "pending").length,
+              new_leads: state.leads.filter((l) => l.status === "new").length,
+              published_offerings: seed.offerings.filter((o) => o.status === "published").length,
+            },
+          ],
+        };
+      });
+    },
+
+    async adminCreateInvite(input: {
+      email: string;
+      role: string;
+      tenantId?: string | null;
+    }): Promise<AdminInvite> {
+      return withState((state) => {
+        requireSession(state);
+        const email = input.email.trim().toLowerCase();
+        if (!email.includes("@")) throw new ApiError("Invalid email", 422, "invalid_email");
+        if (!["owner", "manager", "staff", "platform"].includes(input.role)) {
+          throw new ApiError("Invalid role", 422, "invalid_role");
+        }
+        const invite: LocalInvite = {
+          id: newId(),
+          email,
+          role: input.role,
+          tenant_id: input.role === "platform" ? null : (input.tenantId ?? seed.tenant.id),
+          token: randomHex(64).toLowerCase(),
+          expires_at: new Date(Date.now() + 72 * 3600_000).toISOString(),
+          used_at: null,
+          created_at: iso(Date.now()),
+        };
+        state.invites.push(invite);
+        return {
+          id: invite.id,
+          email: invite.email,
+          role: invite.role,
+          tenant_id: invite.tenant_id,
+          token: invite.token,
+          expires_at: invite.expires_at,
+          created_at: invite.created_at,
+        };
+      });
+    },
+
+    async adminListInvites(): Promise<{ invites: AdminInvite[] }> {
+      return withState((state) => {
+        requireSession(state);
+        return {
+          invites: [...state.invites]
+            .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+            .map((invite) => ({
+              id: invite.id,
+              email: invite.email,
+              role: invite.role,
+              tenant_id: invite.tenant_id,
+              expires_at: invite.expires_at,
+              used_at: invite.used_at,
+              created_at: invite.created_at,
+            })),
+        };
+      });
+    },
+
+    async adminClaimInvite(token: string): Promise<{
+      ok: boolean;
+      tenant_id: string | null;
+      role: string;
+    }> {
+      return withState((state) => {
+        requireSession(state);
+        const invite = state.invites.find(
+          (item) => item.token === token && !item.used_at && Date.parse(item.expires_at) > Date.now(),
+        );
+        if (!invite) throw new ApiError("That invite is not valid", 400, "invite_invalid");
+        invite.used_at = iso(Date.now());
+        return { ok: true, tenant_id: invite.tenant_id, role: invite.role };
+      });
+    },
+
+    async adminListMembers(): Promise<{ members: AdminMember[] }> {
+      return withState((state) => {
+        const session = requireSession(state);
+        return { members: [{ user_id: session.staff.id, role: session.staff.role, active: true }] };
       });
     },
   };
