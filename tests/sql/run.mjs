@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
  * SQL layer tests. Runs the real migrations against PGlite (Postgres 17 in WASM)
  * and asserts the behaviour the API promises:
@@ -221,6 +221,123 @@ await check("masked contact columns cannot store a raw long number pattern", asy
   assert(!columns.includes("customer_phone"), "raw phone column must not exist");
 });
 
+console.log("\nPublic read RPCs:");
+await db.query(
+  `insert into public.tenant_domains (hostname, tenant_id, is_primary)
+   values ('localhost', $1, true)`,
+  [tenantId],
+);
+await db.query(
+  `insert into public.site_settings
+     (tenant_id, brand_name, default_locale, locales, timezone, theme, labels, contact, payment_config)
+   values ($1, '{"en":"Test Clinic","ms":"Klinik Ujian","zh":"æµ‹è¯•è¯Šæ‰€"}', 'en',
+           '["en","ms","zh"]', 'Asia/Kuala_Lumpur', '{"tokens":{"bg":"#fff"}}',
+           '{"book_cta":{"en":"Book"}}',
+           '{"closes_at":"23:00","whatsapp":"60123456789"}',
+           '{}')`,
+  [tenantId],
+);
+await db.query(
+  `update public.offerings set attributes = '{"duration_min":60}' where tenant_id = $1`,
+  [tenantId],
+);
+await db.query(
+  `insert into public.availability_rules (tenant_id, weekday, start_time, end_time, slot_minutes)
+   values ($1, 1, '12:00', '22:30', 45),
+          ($1, 4, '14:00', '22:30', 45),
+          ($1, 0, '10:00', '22:30', 45)`,
+  [tenantId],
+);
+await db.query(
+  `insert into public.page_content (tenant_id, page, section, data)
+   values ($1, 'home', 'hero', '{"headline":{"en":"Open until 11 PM"}}'::jsonb)`,
+  [tenantId],
+);
+
+const avail = await asUser(null, "anon", async () => {
+  const result = await db.query("select public.availability('checkup', 14, '127.0.0.1') as payload");
+  return result.rows[0].payload;
+});
+
+await check("availability returns a 14-day window for anon", async () => {
+  assert(Array.isArray(avail.days) && avail.days.length === 14, `days=${avail.days?.length}`);
+  assert(avail.timezone === "Asia/Kuala_Lumpur", avail.timezone);
+});
+
+await check("no slot starts so late that the treatment ends after closing", async () => {
+  const withSlots = avail.days.slice(1).filter((day) => day.slots.length > 0);
+  assert(withSlots.length > 0, "expected open days in the window");
+  for (const day of withSlots) {
+    const last = day.slots[day.slots.length - 1].time;
+    assert(last <= "22:00", `${day.date} (wd ${day.weekday}) offers ${last} for a 60-min treatment`);
+  }
+});
+
+await check("the grid starts at each day's opening time", async () => {
+  const opening = { 0: "10:00", 1: "12:00", 4: "14:00" };
+  const seen = new Set();
+  for (const day of avail.days.slice(1)) {
+    const expected = opening[day.weekday];
+    if (!expected) continue;
+    assert(day.slots.length > 0, `${day.date} (wd ${day.weekday}) should be open`);
+    assert(day.slots[0].time === expected, `${day.date} starts at ${day.slots[0].time}, expected ${expected}`);
+    seen.add(day.weekday);
+  }
+  assert(seen.size >= 2, `expected Monday/Thursday/Sunday in the window, saw ${[...seen]}`);
+});
+
+await check("an existing booking removes exactly that slot", async () => {
+  const target = avail.days.slice(1).find((day) => day.weekday === 1 && day.slots.length > 0);
+  const first = target.slots[0];
+  await db.query(
+    `insert into public.bookings
+       (tenant_id, booking_ref, offering_id, starts_at, ends_at, status,
+        customer_display_name, customer_contact_masked, cancel_token_hash, consent_at)
+     values ($1, 'SLOT-HOLD-1', $2, $3, $3::timestamptz + interval '60 minutes',
+             'pending', 'Slot Test', '6012***789', 'hash-slot-1', now())`,
+    [tenantId, offeringId, first.starts_at],
+  );
+  const after = await asUser(null, "anon", async () => {
+    const result = await db.query("select public.availability('checkup', 14, '127.0.0.1') as payload");
+    return result.rows[0].payload;
+  });
+  const sameDay = after.days.find((day) => day.date === target.date);
+  const times = sameDay.slots.map((slot) => slot.time);
+  assert(!times.includes(first.time), `${first.time} should be blocked after booking`);
+});
+
+await check("an unknown host is rejected instead of served", async () => {
+  await rejects(
+    "unknown host",
+    () =>
+      asUser(null, "anon", () =>
+        db.query("select public.availability(null, 14, 'evil.example')"),
+      ),
+    /unknown_tenant/,
+  );
+});
+
+const bundle = await asUser(null, "anon", async () => {
+  const result = await db.query("select public.site_bundle('127.0.0.1', null) as payload");
+  return result.rows[0].payload;
+});
+
+await check("site_bundle exposes the tenant, three locales and content", async () => {
+  assert(bundle.tenant.slug === "test-tenant", bundle.tenant.slug);
+  assert(JSON.stringify(bundle.site.locales) === JSON.stringify(["en", "ms", "zh"]));
+  assert(bundle.site.brand_name.en === "Test Clinic", JSON.stringify(bundle.site.brand_name));
+  assert(bundle.content.home.hero.headline.en === "Open until 11 PM");
+  assert(bundle.offerings.length === 1 && bundle.offerings[0].duration_min === 60);
+});
+
+await check("site_bundle provides a 7-day schedule and at most 3 next slots", async () => {
+  assert(bundle.schedule.length === 7, `schedule=${bundle.schedule.length}`);
+  const monday = bundle.schedule.find((day) => day.weekday === 1);
+  assert(monday && monday.closed === false, "Monday should be open");
+  assert(monday.hours.includes("PM"), `hours should be 12-hour: ${monday.hours}`);
+  assert(bundle.next_slots.length <= 3, `next_slots=${bundle.next_slots.length}`);
+});
+
 async function asUser(userId, role, fn) {
   await db.exec("begin");
   try {
@@ -250,9 +367,8 @@ await db.query(
 await db.query(`insert into public.platform_admins (user_id) values ($1)`, [userAdmin]);
 await db.query(
   `insert into public.page_content (tenant_id, page, section, data)
-   values ($1, 'home', 'hero', '{"headline":{"en":"A"}}'::jsonb),
-          ($2, 'home', 'hero', '{"headline":{"en":"B"}}'::jsonb)`,
-  [tenantId, otherTenantId],
+   values ($1, 'home', 'hero', '{"headline":{"en":"B"}}'::jsonb)`,
+  [otherTenantId],
 );
 
 await rejects(
