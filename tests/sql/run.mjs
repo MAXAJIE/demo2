@@ -230,7 +230,7 @@ await db.query(
 await db.query(
   `insert into public.site_settings
      (tenant_id, brand_name, default_locale, locales, timezone, theme, labels, contact, payment_config)
-   values ($1, '{"en":"Test Clinic","ms":"Klinik Ujian","zh":"æµ‹è¯•è¯Šæ‰€"}', 'en',
+   values ($1, '{"en":"Test Clinic","ms":"Klinik Ujian","zh":"Ã¦Âµâ€¹Ã¨Â¯â€¢Ã¨Â¯Å Ã¦â€°â‚¬"}', 'en',
            '["en","ms","zh"]', 'Asia/Kuala_Lumpur', '{"tokens":{"bg":"#fff"}}',
            '{"book_cta":{"en":"Book"}}',
            '{"closes_at":"23:00","whatsapp":"60123456789"}',
@@ -338,14 +338,17 @@ await check("site_bundle provides a 7-day schedule and at most 3 next slots", as
   assert(bundle.next_slots.length <= 3, `next_slots=${bundle.next_slots.length}`);
 });
 
-async function asUser(userId, role, fn) {
+async function asUser(userId, role, fn, persist = true) {
   await db.exec("begin");
   try {
     await db.exec(`set local role ${role}`);
     await db.query("select set_config('request.jwt.claim.sub', $1, true)", [userId ?? ""]);
-    return await fn();
-  } finally {
+    const result = await fn();
+    await db.exec(persist ? "commit" : "rollback");
+    return result;
+  } catch (error) {
     await db.exec("rollback");
+    throw error;
   }
 }
 
@@ -423,6 +426,249 @@ await check("a tenant owner can edit its own page content", async () => {
   );
   assert(result.rows.length === 1, "the owner should be able to edit");
 });
+
+console.log("\nWrite RPCs:");
+const fresh = await asUser(null, "anon", async () => {
+  const result = await db.query("select public.availability('checkup', 30, '127.0.0.1') as payload");
+  return result.rows[0].payload;
+});
+const openDays = fresh.days.filter((day) => day.slots.length > 0);
+const lastDay = openDays[openDays.length - 1];
+const slotA = lastDay.slots[0];
+const slotB = lastDay.slots[1];
+
+const created = await asUser(null, "anon", async () => {
+  const result = await db.query(
+    `select public.create_booking($1, $2::timestamptz, $3, $4, $5, $6, '127.0.0.1') as payload`,
+    ["checkup", slotA.starts_at, "Aisyah Test", "0123456789", "en", true],
+  );
+  return result.rows[0].payload;
+});
+
+await check("a booking is created with a ref, a token and a WhatsApp link", async () => {
+  assert(/^[A-Z]{3}-\d{6}-[0-9A-F]{4}$/.test(created.booking.ref), created.booking.ref);
+  assert(created.booking.cancel_token.length === 32, `token=${created.booking.cancel_token}`);
+  assert(created.booking.status === "pending", created.booking.status);
+  assert(created.whatsapp_url.startsWith("https://wa.me/60123456789?text="), created.whatsapp_url);
+});
+
+await check("the database stores a masked contact and only a token hash", async () => {
+  const result = await db.query(
+    `select customer_contact_masked, cancel_token_hash, customer_display_name
+       from public.bookings where booking_ref = $1`,
+    [created.booking.ref],
+  );
+  const row = result.rows[0];
+  assert(row.customer_contact_masked === "6012***789", row.customer_contact_masked);
+  assert(row.cancel_token_hash !== created.booking.cancel_token, "raw token must not be stored");
+  assert(row.cancel_token_hash.length === 64, "expected a sha256 hex hash");
+});
+
+await rejects(
+  "the same slot cannot be booked twice",
+  () =>
+    asUser(null, "anon", () =>
+      db.query(
+        `select public.create_booking($1, $2::timestamptz, 'Bala Test', '0129876543', 'en', true, '127.0.0.1')`,
+        ["checkup", slotA.starts_at],
+      ),
+    ),
+  /slot_taken|slot_unavailable/,
+);
+
+await rejects(
+  "consent is required",
+  () =>
+    asUser(null, "anon", () =>
+      db.query(
+        `select public.create_booking('checkup', $1::timestamptz, 'No Consent', '0129876543', 'en', false, '127.0.0.1')`,
+        [slotB.starts_at],
+      ),
+    ),
+  /consent_required/,
+);
+
+await rejects(
+  "the honeypot is rejected",
+  () =>
+    asUser(null, "anon", () =>
+      db.query(
+        `select public.create_booking('checkup', $1::timestamptz, 'Bot', '0129876543', 'en', true, '127.0.0.1', null, 'http://spam')`,
+        [slotB.starts_at],
+      ),
+    ),
+  /invalid_submission/,
+);
+
+const status = await asUser(null, "anon", async () => {
+  const result = await db.query(
+    `select public.booking_status($1, $2, '127.0.0.1') as payload`,
+    [created.booking.ref, created.booking.cancel_token],
+  );
+  return result.rows[0].payload;
+});
+
+await check("the confirmation page can read its booking with the token", async () => {
+  assert(status.booking.ref === created.booking.ref);
+  assert(status.booking.customer_contact_masked === "6012***789");
+  assert(typeof status.whatsapp_url === "string" && status.whatsapp_url.includes("wa.me"));
+});
+
+await rejects(
+  "a wrong token cannot read the booking",
+  () =>
+    asUser(null, "anon", () =>
+      db.query(`select public.booking_status($1, 'wrong-token', '127.0.0.1')`, [created.booking.ref]),
+    ),
+  /booking_not_found/,
+);
+
+await check("marking the WhatsApp message sent keeps the hold", async () => {
+  await asUser(null, "anon", () =>
+    db.query(`select public.mark_whatsapp_sent($1, $2, '127.0.0.1')`, [
+      created.booking.ref,
+      created.booking.cancel_token,
+    ]),
+  );
+  await db.query(
+    `update public.bookings set created_at = now() - interval '30 minutes' where booking_ref = $1`,
+    [created.booking.ref],
+  );
+  await db.query("select public.release_expired_holds($1)", [tenantId]);
+  const result = await db.query(
+    `select status, whatsapp_sent_at from public.bookings where booking_ref = $1`,
+    [created.booking.ref],
+  );
+  assert(result.rows[0].status === "pending", "a sent request must not be released");
+  assert(result.rows[0].whatsapp_sent_at !== null, "whatsapp_sent_at should be set");
+});
+
+const holdBooking = await asUser(null, "anon", async () => {
+  const result = await db.query(
+    `select public.create_booking('checkup', $1::timestamptz, 'Hold Test', '0127777777', 'en', true, '127.0.0.1') as payload`,
+    [slotB.starts_at],
+  );
+  return result.rows[0].payload;
+});
+
+await check("an unsent hold older than 10 minutes is released", async () => {
+  await db.query(
+    `update public.bookings set created_at = now() - interval '11 minutes' where booking_ref = $1`,
+    [holdBooking.booking.ref],
+  );
+  const released = await db.query("select public.release_expired_holds($1) as n", [tenantId]);
+  assert(released.rows[0].n >= 1, `released=${released.rows[0].n}`);
+  const row = await db.query(
+    `select status from public.bookings where booking_ref = $1`,
+    [holdBooking.booking.ref],
+  );
+  assert(row.rows[0].status === "cancelled", row.rows[0].status);
+});
+
+await check("the released slot can be booked again", async () => {
+  const again = await asUser(null, "anon", async () => {
+    const result = await db.query(
+      `select public.create_booking('checkup', $1::timestamptz, 'Reuse Test', '0125555555', 'en', true, '127.0.0.1') as payload`,
+      [slotB.starts_at],
+    );
+    return result.rows[0].payload;
+  });
+  assert(again.booking.status === "pending", again.booking.status);
+});
+
+const lead = await asUser(null, "anon", async () => {
+  const result = await db.query(
+    `select public.create_lead('Mei Ling', '0111234567', 'Can I book a scaling next week?', null, 'en', true, '127.0.0.1') as payload`,
+  );
+  return result.rows[0].payload;
+});
+
+await check("a lead is created with a masked contact", async () => {
+  assert(/^LED-\d{6}-[0-9A-F]{4}$/.test(lead.lead.ref), lead.lead.ref);
+  assert(lead.lead.contact_masked === "6011***567", lead.lead.contact_masked);
+  assert(lead.lead.status === "new");
+});
+
+await rejects(
+  "an invalid phone is rejected",
+  () =>
+    asUser(null, "anon", () =>
+      db.query(`select public.create_lead('Bad', '123', 'too short number', null, 'en', true, '127.0.0.1')`),
+    ),
+  /invalid_phone/,
+);
+
+console.log("\nAdmin access:");
+const newUser = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const inviteToken = "invite-token-for-tests-123456";
+await db.query(`insert into auth.users (id, email) values ($1, 'newstaff@example.my')`, [newUser]);
+await db.query(
+  `insert into public.admin_invites (email, tenant_id, role, token_hash, expires_at)
+   values ('newstaff@example.my', $1, 'manager',
+           encode(sha256(convert_to($2, 'utf8')), 'hex'), now() + interval '1 day')`,
+  [tenantId, inviteToken],
+);
+
+const claimed = await asUser(newUser, "authenticated", async () => {
+  const result = await db.query("select public.claim_admin_invite($1) as payload", [inviteToken]);
+  return result.rows[0].payload;
+});
+
+await check("an invited email becomes a tenant manager", async () => {
+  assert(claimed.ok === true && claimed.role === "manager", JSON.stringify(claimed));
+  const row = await db.query(
+    `select role, active from public.tenant_members where user_id = $1 and tenant_id = $2`,
+    [newUser, tenantId],
+  );
+  assert(row.rows[0].role === "manager" && row.rows[0].active === true);
+});
+
+await rejects(
+  "an invite cannot be claimed twice",
+  () =>
+    asUser(newUser, "authenticated", () =>
+      db.query("select public.claim_admin_invite($1)", [inviteToken]),
+    ),
+  /invite_invalid/,
+);
+
+await rejects(
+  "an invite for a different email is rejected",
+  async () => {
+    const otherToken = "invite-token-for-someone-else";
+    await db.query(
+      `insert into public.admin_invites (email, tenant_id, role, token_hash, expires_at)
+       values ('someone-else@example.my', $1, 'staff',
+               encode(sha256(convert_to($2, 'utf8')), 'hex'), now() + interval '1 hour')`,
+      [tenantId, otherToken],
+    );
+    return asUser(newUser, "authenticated", () =>
+      db.query("select public.claim_admin_invite($1)", [otherToken]),
+    );
+  },
+  /invite_invalid/,
+);
+
+const overview = await asUser(userA, "authenticated", async () => {
+  const result = await db.query("select public.admin_overview($1) as payload", [tenantId]);
+  return result.rows[0].payload;
+});
+
+await check("admin_overview reports counts and upcoming bookings", async () => {
+  assert(overview.tenant.slug === "test-tenant", overview.tenant?.slug);
+  assert(overview.counts.pending_bookings >= 1, JSON.stringify(overview.counts));
+  assert(Array.isArray(overview.upcoming) && overview.upcoming.length >= 1);
+  assert(overview.upcoming[0].ref, "upcoming rows need a ref");
+});
+
+await rejects(
+  "admin_overview refuses a tenant the user does not belong to",
+  () =>
+    asUser(userA, "authenticated", () =>
+      db.query("select public.admin_overview($1)", [otherTenantId]),
+    ),
+  /forbidden/,
+);
 
 console.log(`\n${checks - failures}/${checks} checks passed`);
 await db.close();
